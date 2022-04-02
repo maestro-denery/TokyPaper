@@ -63,17 +63,15 @@ paperweight {
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
             serverOutputDir.set(layout.projectDirectory.dir("tablight-server"))
         }
-    }
-    /*
-    patchTasks {
-        register("mojangApi") {
-            isBareDirectory.set(true)
-            upstreamDirPath.set("Paper-MojangAPI")
-            patchDir.set(layout.projectDirectory.dir("patches/mojangapi"))
-            outputDir.set(layout.projectDirectory.dir("tablight-mojangapi"))
+        patchTasks {
+            register("mojangApi") {
+                isBareDirectory.set(true)
+                upstreamDirPath.set("Paper-MojangAPI")
+                patchDir.set(layout.projectDirectory.dir("patches/mojangapi"))
+                outputDir.set(layout.projectDirectory.dir("tablight-mojang-api"))
+            }
         }
     }
-     */
 }
 
 tasks {
