@@ -50,7 +50,7 @@ subprojects {
 }
 
 paperweight {
-    serverProject.set(project(":tablight-server"))
+    serverProject.set(project(":tablight-paper-server"))
 
     remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
@@ -58,10 +58,10 @@ paperweight {
     usePaperUpstream(providers.gradleProperty("paperRef")) {
         withPaperPatcher {
             apiPatchDir.set(layout.projectDirectory.dir("patches/api"))
-            apiOutputDir.set(layout.projectDirectory.dir("tablight-api"))
+            apiOutputDir.set(layout.projectDirectory.dir("tablight-paper-api"))
 
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
-            serverOutputDir.set(layout.projectDirectory.dir("tablight-server"))
+            serverOutputDir.set(layout.projectDirectory.dir("tablight-paper-server"))
         }
         patchTasks {
             register("mojangApi") {
@@ -76,7 +76,7 @@ paperweight {
 
 tasks {
     generateDevelopmentBundle {
-        apiCoordinates.set("dev.tablight.tablightpaper:tablight-api")
+        apiCoordinates.set("dev.tablight.tablightpaper:tablight-paper-api")
         mojangApiCoordinates.set("dev.tablight.tablightpaper:tablight-mojang-api")
         libraryRepositories.set(
             listOf(

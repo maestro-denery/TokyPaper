@@ -7,4 +7,9 @@ pluginManagement {
 
 rootProject.name = "TablightPaper"
 
-include("tablight-api", "tablight-server", "tablight-mojang-api")
+include(
+    "tablight-paper-api",
+    "tablight-paper-server",
+    "tablight-mojang-api"
+    //"tablight-api-base"
+)

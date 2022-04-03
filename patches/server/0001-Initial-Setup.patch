@@ -8,7 +8,7 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index 4beb35d1e5b013395f5df101e843f41c2ce174ad..a62277a9ed8d4623dddcafa85570be79cfcda325 100644
+index 4beb35d1e5b013395f5df101e843f41c2ce174ad..f0c57965e7b7a2bfa09464f0bccae368da29fec6 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
 @@ -18,8 +18,10 @@ repositories {
@@ -18,7 +18,7 @@ index 4beb35d1e5b013395f5df101e843f41c2ce174ad..a62277a9ed8d4623dddcafa85570be79
 -    implementation(project(":paper-api"))
 -    implementation(project(":paper-mojangapi"))
 +    // TablightPaper start
-+    implementation(project(":tablight-api"))
++    implementation(project(":tablight-paper-api"))
 +    implementation(project(":tablight-mojang-api"))
 +    // TablightPaper end
      // Paper start
