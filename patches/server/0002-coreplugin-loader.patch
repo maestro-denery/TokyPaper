@@ -1,0 +1,214 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Tue, 24 May 2022 12:51:52 +0300
+Subject: [PATCH] coreplugin-loader
+
+
+diff --git a/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4add50a585d
+--- /dev/null
++++ b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
+@@ -0,0 +1,185 @@
++package net.drf.drfpaper.loader;
++
++import java.io.File;
++import java.io.FileNotFoundException;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.InputStreamReader;
++import java.lang.reflect.InvocationTargetException;
++import java.net.URL;
++import java.net.URLClassLoader;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.List;
++import java.util.jar.JarEntry;
++import java.util.jar.JarFile;
++
++import com.google.common.base.Preconditions;
++import joptsimple.OptionSet;
++import net.drf.drfpaper.DRFPaper;
++import org.bukkit.plugin.InvalidPluginException;
++import org.jetbrains.annotations.NotNull;
++
++public class DRFCorePluginLoader implements CorePluginLoader {
++	public static final DRFCorePluginLoader INSTANCE = new DRFCorePluginLoader();
++	private final List<DRFCorePluginClassLoader> corePluginClassLoaders = new ArrayList<>();
++	private final List<CorePlugin> corePlugins = new ArrayList<>();
++	private File pluginFolder;
++	private DRFCorePluginLoader() {}
++
++	public void loadCorePlugins(@NotNull final OptionSet optionSet) {
++		this.pluginFolder = (File) optionSet.valueOf("plugins");
++		if (!pluginFolder.exists())
++			pluginFolder.mkdir();
++		if (!pluginFolder.isDirectory())
++			throw new IllegalStateException("`plugins` is not a directory!");
++		final List<File> jars = (List<File>) optionSet.valuesOf("add-plugin");
++		final List<File> pluginsFiles = new ArrayList<>();
++		final File[] filesInPluginDirectory = pluginFolder.listFiles();
++		if (filesInPluginDirectory != null)
++			pluginsFiles.addAll(Arrays.asList(filesInPluginDirectory));
++		pluginsFiles.addAll(jars);
++		try {
++			for (final File pluginFile : pluginsFiles) {
++				if (pluginFile.getName().startsWith("."))
++					continue;
++				if (!pluginFile.getName().endsWith(".jar"))
++					continue;
++				if (pluginFile.isDirectory())
++					continue;
++				final CorePlugin corePlugin = this.load(pluginFile);
++				corePlugins.add(corePlugin);
++				corePlugin.onLoad();
++				DRFPaper.logger.info("Loaded core plugin: " + corePlugin.getName());
++			}
++		} catch (InvalidPluginException e) {
++			throw new RuntimeException("Something went wrong while loading core plugins in the `plugins` directory", e);
++		}
++	}
++
++	@Override
++	public @NotNull CorePlugin load(@NotNull final File file) throws InvalidPluginException {
++		CorePluginDescriptionFile pluginDescription;
++		try {
++			 pluginDescription = getPluginDescription(file);
++		} catch (InvalidCorePluginDescriptionException e) {
++			throw new InvalidPluginException(e);
++		}
++		DRFCorePluginClassLoader classLoader;
++
++		try {
++			classLoader = new DRFCorePluginClassLoader(this, pluginDescription, file, new File(pluginFolder, pluginDescription.getName()), getClass().getClassLoader());
++		} catch (InvalidPluginException ex) {
++			throw ex;
++		} catch (Throwable ex) {
++			throw new InvalidPluginException(ex);
++		}
++
++		corePluginClassLoaders.add(classLoader);
++		return classLoader.getCorePlugin();
++	}
++
++	@Override
++	public @NotNull CorePluginDescriptionFile getPluginDescription(@NotNull final File file) throws InvalidCorePluginDescriptionException {
++		Preconditions.checkNotNull(file, "File cannot be null!");
++		JarFile jarFile;
++		InputStream inputStream = null;
++		try {
++			jarFile = new JarFile(file);
++			JarEntry jarEntry = jarFile.getJarEntry("coreplugin.json");
++
++			if (jarEntry == null)
++				throw new InvalidCorePluginDescriptionException(new FileNotFoundException("coreplugin.json doesn't exist in jar!"));
++
++			inputStream = jarFile.getInputStream(jarEntry);
++			final var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
++			return CorePluginDescriptionFile.from(reader);
++		} catch (IOException e) {
++			throw new InvalidCorePluginDescriptionException(e);
++		} finally {
++			try {
++				if (inputStream != null)
++					inputStream.close();
++			} catch (IOException e) {
++				DRFPaper.logger.info("Something went wrong while closing InputStream of reading coreplugin.json process.");
++			}
++		}
++	}
++
++	@Override
++	public @NotNull Collection<CorePlugin> getLoadedCorePlugins() {
++		return corePlugins;
++	}
++
++	@Override
++	public @NotNull File getPluginsFolder() {
++		return pluginFolder;
++	}
++
++	public List<DRFCorePluginClassLoader> getCorePluginClassLoaders() {
++		return corePluginClassLoaders;
++	}
++
++	public static class DRFCorePluginClassLoader extends URLClassLoader {
++		private final CorePluginLoader corePluginLoader;
++		private final CorePluginDescriptionFile description;
++		private final JarFile jar;
++		private final CorePlugin corePlugin;
++
++		public DRFCorePluginClassLoader(
++				@NotNull final CorePluginLoader corePluginLoader,
++				@NotNull final CorePluginDescriptionFile description,
++				@NotNull final File jarFile,
++				@NotNull final File dataFolder,
++				@NotNull final ClassLoader classLoader
++		) throws IOException, InvalidPluginException {
++			super(jarFile.getName(), new URL[] { jarFile.toURI().toURL() }, classLoader);
++			this.corePluginLoader = corePluginLoader;
++			this.description = description;
++			this.jar = new JarFile(jarFile, true, java.util.zip.ZipFile.OPEN_READ, JarFile.runtimeVersion());
++
++			try {
++				Class<?> jarClass;
++				try {
++					jarClass = Class.forName(description.getMain(), true, this);
++				} catch (ClassNotFoundException ex) {
++					throw new InvalidPluginException("Cannot find main class `" + description.getMain() + "'", ex);
++				}
++
++				Class<? extends CorePlugin> pluginClass;
++				try {
++					pluginClass = jarClass.asSubclass(CorePlugin.class);
++				} catch (ClassCastException ex) {
++					throw new InvalidPluginException("main class `" + description.getMain() + "' does not extend JavaPlugin", ex);
++				}
++
++				corePlugin = pluginClass.getDeclaredConstructor().newInstance();
++				corePlugin.init(corePluginLoader, description, jarFile, dataFolder, this);
++			} catch (IllegalAccessException ex) {
++				throw new InvalidPluginException("No public constructor", ex);
++			} catch (InstantiationException | InvalidPluginException ex) {
++				throw new InvalidPluginException("Abnormal plugin type", ex);
++			} catch (InvocationTargetException | NoSuchMethodException e) {
++				throw new InvalidPluginException("Something went wrong while trying to instantiate CorePlugin class", e);
++			}
++		}
++
++		public CorePlugin getCorePlugin() {
++			return corePlugin;
++		}
++
++		public CorePluginLoader getCorePluginLoader() {
++			return corePluginLoader;
++		}
++
++		public CorePluginDescriptionFile getDescription() {
++			return description;
++		}
++
++		public JarFile getJar() {
++			return jar;
++		}
++	}
++}
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 1e0d261439255091a6f61485c0747231fbd5b1db..2f7343dad6d227e9bbe94b7e5a99baa7066aa25b 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -97,7 +97,11 @@ public class Main {
+             */ // CraftBukkit end
+ 
+         try {
+-
++			// DRFPaper start - Core plugin loading.
++			final net.drf.drfpaper.loader.DRFCorePluginLoader corePluginLoader = net.drf.drfpaper.loader.DRFCorePluginLoader.INSTANCE;
++			net.drf.drfpaper.DRFPaper.INSTANCE.setCorePluginLoader(corePluginLoader);
++			corePluginLoader.loadCorePlugins(optionset);
++			// DRFPaper end
+             CrashReport.preload();
+             if (optionset.has("jfrProfile")) { // CraftBukkit
+                 JvmProfiler.INSTANCE.start(Environment.SERVER);

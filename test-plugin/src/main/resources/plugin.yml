@@ -1,0 +1,7 @@
+name: DRFPaper-Test-Plugin
+version: ${version}
+main: net.drf.drfpaper.testplugin.TestPlugin
+description: DRFPaper Test Plugin
+author: DRF
+api-version: ${apiversion}
+load: STARTUP

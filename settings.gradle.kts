@@ -5,11 +5,11 @@ pluginManagement {
     }
 }
 
-rootProject.name = "TablightPaper"
+rootProject.name = "DRFPaper"
 
 include(
-    "tablight-paper-api",
-    "tablight-paper-server",
-    "tablight-mojang-api"
-    //"tablight-api-base"
+    "drf-paper-api",
+    "drf-paper-server",
+    "drf-mojang-api",
+    "test-plugin"
 )

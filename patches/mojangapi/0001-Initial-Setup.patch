@@ -5,15 +5,15 @@ Subject: [PATCH] Initial-Setup
 
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index c90209011a266e71511954f23a1e42efa8c62a54..03ce051599d047ed9ec2b06908ceb05a3de45902 100644
+index 3275a3bf46b2751813a75f9940841a78272143e5..5092dcbf3daf353420c76382f2a3ad73ce8b4077 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
-@@ -14,7 +14,7 @@ repositories {
+@@ -9,7 +9,7 @@ java {
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
-+    implementation(project(":tablight-paper-api"))
++    implementation(project(":drf-paper-api")) // DRFPaper
      api("com.mojang:brigadier:1.0.18")
  
      compileOnly("it.unimi.dsi:fastutil:8.5.6")

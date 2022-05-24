@@ -9,6 +9,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    mavenLocal()
     maven("https://papermc.io/repo/repository/maven-public/") {
         content { onlyForConfigurations(PAPERCLIP_CONFIG) }
     }
@@ -45,12 +46,13 @@ subprojects {
 
     repositories {
         mavenCentral()
+        mavenLocal()
         maven("https://papermc.io/repo/repository/maven-public/")
     }
 }
 
 paperweight {
-    serverProject.set(project(":tablight-paper-server"))
+    serverProject.set(project(":drf-paper-server"))
 
     remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
@@ -58,17 +60,17 @@ paperweight {
     usePaperUpstream(providers.gradleProperty("paperRef")) {
         withPaperPatcher {
             apiPatchDir.set(layout.projectDirectory.dir("patches/api"))
-            apiOutputDir.set(layout.projectDirectory.dir("tablight-paper-api"))
+            apiOutputDir.set(layout.projectDirectory.dir("drf-paper-api"))
 
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
-            serverOutputDir.set(layout.projectDirectory.dir("tablight-paper-server"))
+            serverOutputDir.set(layout.projectDirectory.dir("drf-paper-server"))
         }
         patchTasks {
             register("mojangApi") {
                 isBareDirectory.set(true)
                 upstreamDirPath.set("Paper-MojangAPI")
                 patchDir.set(layout.projectDirectory.dir("patches/mojangapi"))
-                outputDir.set(layout.projectDirectory.dir("tablight-mojang-api"))
+                outputDir.set(layout.projectDirectory.dir("drf-mojang-api"))
             }
         }
     }
@@ -76,8 +78,8 @@ paperweight {
 
 tasks {
     generateDevelopmentBundle {
-        apiCoordinates.set("dev.tablight.tablightpaper:tablight-paper-api")
-        mojangApiCoordinates.set("dev.tablight.tablightpaper:tablight-mojang-api")
+        apiCoordinates.set("net.drf.drfpaper:drf-paper-api")
+        mojangApiCoordinates.set("net.drf.drfpaper:drf-mojang-api")
         libraryRepositories.set(
             listOf(
                 "https://repo.maven.apache.org/maven2/",
