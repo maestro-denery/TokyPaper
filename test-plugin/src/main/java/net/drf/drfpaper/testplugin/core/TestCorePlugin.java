@@ -9,6 +9,6 @@ public class TestCorePlugin extends CorePlugin {
 
 	@Override
 	public void onLoad() {
-		logger.info("Successfully loaded core plugin.");
+		logger.info("Successfully loaded test core plugin.");
 	}
 }
