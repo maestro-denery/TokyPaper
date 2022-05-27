@@ -5,7 +5,7 @@ Subject: [PATCH] Initial-Setup
 
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index 01798255d45f2a642df00156f11dd2bcd8108079..37f9da59f991d76491d227e1bf3dc85d26de8df4 100644
+index 01798255d45f2a642df00156f11dd2bcd8108079..9613c4176348a402d6939368d2803b4c9477f53d 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
 @@ -9,6 +9,7 @@ java {
@@ -21,10 +21,10 @@ index 01798255d45f2a642df00156f11dd2bcd8108079..37f9da59f991d76491d227e1bf3dc85d
      apiAndDocs("net.kyori:adventure-text-serializer-legacy")
      apiAndDocs("net.kyori:adventure-text-serializer-plain")
 +    // DRFPaper start
-+    apiAndDocs(platform("net.drf:drf-bom:$drfVersion"))
-+    apiAndDocs("net.drf:drf-base")
-+    apiAndDocs("net.drf:drf-data-addons")
-+    apiAndDocs("net.drf:drf-registries")
++    api(platform("net.drf:drf-bom:$drfVersion")) // TODO: figure out how correctly set up docs.
++    api("net.drf:drf-base")
++    api("net.drf:drf-data-addons")
++    api("net.drf:drf-registries")
 +    // DRFPaper end
      api("org.apache.logging.log4j:log4j-api:2.17.1")
      api("org.slf4j:slf4j-api:1.8.0-beta4")
