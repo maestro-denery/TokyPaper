@@ -1,4 +1,6 @@
 {
   "name": "test_core_plugin",
-  "main": "net.drf.drfpaper.testplugin.core.TestCorePlugin"
+  "main": "net.drf.drfpaper.testplugin.core.TestCorePlugin",
+  "dependencies": [
+  ]
 }

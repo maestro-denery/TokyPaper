@@ -6,10 +6,10 @@ Subject: [PATCH] coreplugin-loader
 
 diff --git a/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4add50a585d
+index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53ab6c0fb6
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,251 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.File;
@@ -21,14 +21,21 @@ index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4ad
 +import java.net.URL;
 +import java.net.URLClassLoader;
 +import java.nio.charset.StandardCharsets;
++import java.util.ArrayDeque;
 +import java.util.ArrayList;
 +import java.util.Arrays;
 +import java.util.Collection;
++import java.util.Deque;
++import java.util.HashMap;
 +import java.util.List;
++import java.util.Map;
++import java.util.Set;
 +import java.util.jar.JarEntry;
 +import java.util.jar.JarFile;
 +
 +import com.google.common.base.Preconditions;
++import com.google.common.graph.GraphBuilder;
++import com.google.common.graph.MutableGraph;
 +import joptsimple.OptionSet;
 +import net.drf.drfpaper.DRFPaper;
 +import org.bukkit.plugin.InvalidPluginException;
@@ -38,6 +45,7 @@ index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4ad
 +	public static final DRFCorePluginLoader INSTANCE = new DRFCorePluginLoader();
 +	private final List<DRFCorePluginClassLoader> corePluginClassLoaders = new ArrayList<>();
 +	private final List<CorePlugin> corePlugins = new ArrayList<>();
++	private final DependencyOrderLoader dependencyOrderLoader = new DependencyOrderLoader();
 +	private File pluginFolder;
 +	private DRFCorePluginLoader() {}
 +
@@ -63,9 +71,8 @@ index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4ad
 +					continue;
 +				final CorePlugin corePlugin = this.load(pluginFile);
 +				corePlugins.add(corePlugin);
-+				corePlugin.onLoad();
-+				DRFPaper.logger.info("Loaded core plugin: " + corePlugin.getName());
 +			}
++			dependencyOrderLoader.loadCorePluginsInDependencyOrder(corePlugins);
 +		} catch (InvalidPluginException e) {
 +			throw new RuntimeException("Something went wrong while loading core plugins in the `plugins` directory", e);
 +		}
@@ -134,6 +141,10 @@ index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4ad
 +		return corePluginClassLoaders;
 +	}
 +
++	public DependencyOrderLoader getDependencyOrderLoader() {
++		return dependencyOrderLoader;
++	}
++
 +	public static class DRFCorePluginClassLoader extends URLClassLoader {
 +		private final CorePluginLoader corePluginLoader;
 +		private final CorePluginDescriptionFile description;
@@ -194,7 +205,99 @@ index 0000000000000000000000000000000000000000..c9677fc69865fafd7739bc9de410c4ad
 +			return jar;
 +		}
 +	}
++
++	@SuppressWarnings("UnstableApiUsage")
++	public static class DependencyOrderLoader {
++		private final MutableGraph<CorePlugin> dependencyGraph = GraphBuilder.directed()
++				.allowsSelfLoops(false)
++				.build();
++		private final Map<String, CorePlugin> nameToCorePluginCache = new HashMap<>();
++
++		public void loadCorePluginsInDependencyOrder(final Collection<CorePlugin> corePlugins) {
++			for (CorePlugin corePlugin : corePlugins) {
++				nameToCorePluginCache.put(corePlugin.getName(), corePlugin);
++			}
++			for (CorePlugin corePlugin : corePlugins) {
++				final List<String> dependencyList = corePlugin.getDescriptionFile().getDependencies();
++				if (dependencyList.isEmpty()) {
++					executeOnLoad(corePlugin);
++				} else {
++					dependencyGraph.addNode(corePlugin);
++					for (String dependencyName : dependencyList) {
++						final CorePlugin dependent = nameToCorePluginCache.get(dependencyName);
++						if (dependent == null)
++							throw new RuntimeException("Core plugin `" + corePlugin.getName() + "` requires `" + dependencyName + "` to work.");
++						dependencyGraph.addNode(dependent);
++						dependencyGraph.putEdge(corePlugin, dependent);
++					}
++				}
++			}
++			final MutableGraph<CorePlugin> localDependencyGraph = dependencyGraph;
++			for (CorePlugin node : localDependencyGraph.nodes()) {
++				final Deque<CorePlugin> corePluginDeque = new ArrayDeque<>();
++				corePluginDeque.push(node);
++				while (!corePluginDeque.isEmpty()) {
++					CorePlugin currentCorePlugin = corePluginDeque.pop();
++					Set<CorePlugin> predecessors = localDependencyGraph.predecessors(currentCorePlugin);
++					if (predecessors.isEmpty()) {
++						localDependencyGraph.removeNode(currentCorePlugin);
++						executeOnLoad(currentCorePlugin);
++						break;
++					}
++					for (CorePlugin predecessor : predecessors) {
++						corePluginDeque.push(predecessor);
++					}
++				}
++			}
++		}
++
++		public MutableGraph<CorePlugin> getDependencyGraph() {
++			return dependencyGraph;
++		}
++
++		private void executeOnLoad(final CorePlugin corePlugin) {
++			DRFPaper.logger.info("Loaded core plugin: " + corePlugin.getName());
++			corePlugin.onLoad(); // Where loading begins.
++		}
++	}
 +}
+diff --git a/src/main/java/net/drf/drfpaper/loader/crash/DRFCrashReport.java b/src/main/java/net/drf/drfpaper/loader/crash/DRFCrashReport.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1d564fc81500c13073560e5e6774f7552c8ebb
+--- /dev/null
++++ b/src/main/java/net/drf/drfpaper/loader/crash/DRFCrashReport.java
+@@ -0,0 +1,19 @@
++package net.drf.drfpaper.loader.crash;
++
++import net.drf.drfpaper.loader.CorePlugin;
++import net.drf.drfpaper.loader.DRFCorePluginLoader;
++
++import java.io.StringWriter;
++import java.util.function.Supplier;
++import java.util.stream.Collectors;
++
++public final class DRFCrashReport implements Supplier<String> {
++
++	@Override
++	public String get() {
++		StringWriter value = new StringWriter();
++		value.append("\n CorePlugins: ")
++				.append(DRFCorePluginLoader.INSTANCE.getLoadedCorePlugins().stream().map(CorePlugin::getName).map(s -> s + "\n ").collect(Collectors.joining()));
++		return value.toString();
++	}
++}
+diff --git a/src/main/java/net/minecraft/CrashReport.java b/src/main/java/net/minecraft/CrashReport.java
+index 1a859fef0848cf23a672012e9764965ae1c07ec5..0c73c682d8d57377deb1d195c98b06f71c1c7fa2 100644
+--- a/src/main/java/net/minecraft/CrashReport.java
++++ b/src/main/java/net/minecraft/CrashReport.java
+@@ -34,6 +34,7 @@ public class CrashReport {
+         this.title = message;
+         this.exception = cause;
+         this.systemReport.setDetail("CraftBukkit Information", new org.bukkit.craftbukkit.CraftCrashReport()); // CraftBukkit
++		this.systemReport.setDetail("DRFPaper Information", new net.drf.drfpaper.loader.crash.DRFCrashReport()); // DRFPaper - additional crash report info
+     }
+ 
+     public String getTitle() {
 diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
 index 1e0d261439255091a6f61485c0747231fbd5b1db..2f7343dad6d227e9bbe94b7e5a99baa7066aa25b 100644
 --- a/src/main/java/net/minecraft/server/Main.java
@@ -212,3 +315,23 @@ index 1e0d261439255091a6f61485c0747231fbd5b1db..2f7343dad6d227e9bbe94b7e5a99baa7
              CrashReport.preload();
              if (optionset.has("jfrProfile")) { // CraftBukkit
                  JvmProfiler.INSTANCE.start(Environment.SERVER);
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index a659fa61bec5cc8b6a1314130228f62d3ddaa9dc..8bbb24eb8dae31851698457aef608aedca2a4fc3 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1063,6 +1063,15 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             net.minecrell.terminalconsole.TerminalConsoleAppender.close(); // Paper - Use TerminalConsoleAppender
+         } catch (Exception e) {
+         }
++		// DRFPaper start - core plugin shutting down
++		net.drf.drfpaper.loader.DRFCorePluginLoader.INSTANCE.getCorePluginClassLoaders().forEach(corePluginClassLoader -> {
++			try {
++				corePluginClassLoader.close();
++			} catch (IOException e) {
++				throw new RuntimeException("Something went wrong while closing core plugin class loader", e);
++			}
++		});
++		// DRFPaper end
+         this.onServerExit();
+         // Paper end
+     }

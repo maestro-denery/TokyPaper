@@ -6,10 +6,10 @@ Subject: [PATCH] coreplugin-loader
 
 diff --git a/src/main/java/net/drf/drfpaper/DRFPaper.java b/src/main/java/net/drf/drfpaper/DRFPaper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..77ad54c8a288c0814aae4f6578309143169e4087
+index 0000000000000000000000000000000000000000..7be58e7da809e3796dcdd68731d09559ab8fd8b4
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/DRFPaper.java
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,27 @@
 +package net.drf.drfpaper;
 +
 +import net.drf.drfpaper.loader.CorePluginLoader;
@@ -17,6 +17,9 @@ index 0000000000000000000000000000000000000000..77ad54c8a288c0814aae4f6578309143
 +import org.slf4j.Logger;
 +import org.slf4j.LoggerFactory;
 +
++/**
++ * A main DRFPaper class containing API info, accesses to APIs and info shared between plugins.
++ */
 +public final class DRFPaper {
 +	private DRFPaper() {}
 +	public static final DRFPaper INSTANCE = new DRFPaper();
@@ -161,19 +164,24 @@ index 0000000000000000000000000000000000000000..f91076aae4ac5f380df1f4df57181efb
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java b/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9084a994ae2a48fd1de215d5d3a51989becd877
+index 0000000000000000000000000000000000000000..121d3c93e630cc2f19450c4f60540f07d48f7ab3
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,42 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.Reader;
++import java.util.ArrayList;
++import java.util.List;
 +
 +import com.google.gson.FieldNamingPolicy;
 +import com.google.gson.Gson;
 +import com.google.gson.GsonBuilder;
 +import org.jetbrains.annotations.NotNull;
 +
++/**
++ * Represents a simple JSON description file.
++ */
 +public final class CorePluginDescriptionFile {
 +	private CorePluginDescriptionFile() {}
 +
@@ -184,6 +192,7 @@ index 0000000000000000000000000000000000000000..f9084a994ae2a48fd1de215d5d3a5198
 +
 +	private String name;
 +	private String main;
++	private final List<String> dependencies = new ArrayList<>();
 +
 +	public static CorePluginDescriptionFile from(@NotNull Reader reader) {
 +		return CORE_PLUGIN_DESCRIPTION_GSON.fromJson(reader, CorePluginDescriptionFile.class);
@@ -196,13 +205,17 @@ index 0000000000000000000000000000000000000000..f9084a994ae2a48fd1de215d5d3a5198
 +	public String getMain() {
 +		return main;
 +	}
++
++	public List<String> getDependencies() {
++		return dependencies;
++	}
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java b/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fc7fa24ada489d2d98d79d5f9ab5f2c783318f27
+index 0000000000000000000000000000000000000000..d26e1b2c5d1b70f8fde298cae9746b83b478eb5e
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +package net.drf.drfpaper.loader;
 +
 +import org.bukkit.plugin.InvalidPluginException;
@@ -212,7 +225,8 @@ index 0000000000000000000000000000000000000000..fc7fa24ada489d2d98d79d5f9ab5f2c7
 +import java.util.Collection;
 +
 +/**
-+ * Represents a loader of core plugins.
++ * Represents a loader of core plugins. Generally useful for obtaining all loaded core plugins,
++ * unless you are trying to implement your own core plugin system.
 + */
 +public interface CorePluginLoader {
 +	@NotNull
@@ -242,19 +256,22 @@ index 0000000000000000000000000000000000000000..8d9d7a2a468b34c62cc3e0a6082a1ca4
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/PluginLike.java b/src/main/java/net/drf/drfpaper/loader/PluginLike.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..501ebd1e7281154dc97420cf79d70c86dd66fe29
+index 0000000000000000000000000000000000000000..a6ee8b1c782187213f9b1f207244b3cdf4b252b0
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/PluginLike.java
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,23 @@
 +package net.drf.drfpaper.loader;
-+
-+import org.bukkit.configuration.file.FileConfiguration;
-+import org.bukkit.plugin.PluginLoader;
-+import org.jetbrains.annotations.NotNull;
-+import org.jetbrains.annotations.Nullable;
 +
 +import java.io.InputStream;
 +
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * An interface representing something "plugin-like" thing which can load, give its name, give and save resources.
++ * Actually, the only its implementations are Bukkit's {@link org.bukkit.plugin.Plugin} and DRFPaper's {@link CorePlugin},
++ * and it is created only for making additional abstraction over them.
++ */
 +public interface PluginLike {
 +	void onLoad();
 +
