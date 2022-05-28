@@ -39,10 +39,10 @@ index 0000000000000000000000000000000000000000..7be58e7da809e3796dcdd68731d09559
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePlugin.java b/src/main/java/net/drf/drfpaper/loader/CorePlugin.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f91076aae4ac5f380df1f4df57181efbcba8c8d7
+index 0000000000000000000000000000000000000000..75dae62bb0a1178eaa83b3a66a736f10a0a56424
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/CorePlugin.java
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,127 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.File;
@@ -57,6 +57,11 @@ index 0000000000000000000000000000000000000000..f91076aae4ac5f380df1f4df57181efb
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++/**
++ *	This class represents a plugin which loads before Minecraft's game content initialization,
++ *	you need to extend this class and make proper "coreplugin.json" config with "main" option pointing to it
++ *	to use it.
++ */
 +public abstract class CorePlugin implements PluginLike {
 +	private CorePluginLoader loader;
 +	private CorePluginDescriptionFile description;
@@ -137,6 +142,9 @@ index 0000000000000000000000000000000000000000..f91076aae4ac5f380df1f4df57181efb
 +		}
 +	}
 +
++	/**
++	 * @return A description file having info about this CorePlugin.
++	 */
 +	public CorePluginDescriptionFile getDescriptionFile() {
 +		return description;
 +	}
@@ -164,16 +172,17 @@ index 0000000000000000000000000000000000000000..f91076aae4ac5f380df1f4df57181efb
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java b/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..121d3c93e630cc2f19450c4f60540f07d48f7ab3
+index 0000000000000000000000000000000000000000..6edaafc597fcc438fc2ec7a66d8300887914d02f
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/CorePluginDescriptionFile.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,51 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.Reader;
 +import java.util.ArrayList;
 +import java.util.List;
 +
++import com.google.common.collect.ImmutableList;
 +import com.google.gson.FieldNamingPolicy;
 +import com.google.gson.Gson;
 +import com.google.gson.GsonBuilder;
@@ -198,6 +207,14 @@ index 0000000000000000000000000000000000000000..121d3c93e630cc2f19450c4f60540f07
 +		return CORE_PLUGIN_DESCRIPTION_GSON.fromJson(reader, CorePluginDescriptionFile.class);
 +	}
 +
++	public static CorePluginDescriptionFile of(@NotNull String name, @NotNull String main, @NotNull List<String> dependencies) {
++		CorePluginDescriptionFile corePluginDescriptionFile = new CorePluginDescriptionFile();
++		corePluginDescriptionFile.name = name;
++		corePluginDescriptionFile.main = main;
++		corePluginDescriptionFile.dependencies.addAll(dependencies);
++		return corePluginDescriptionFile;
++	}
++
 +	public String getName() {
 +		return name;
 +	}
@@ -206,18 +223,19 @@ index 0000000000000000000000000000000000000000..121d3c93e630cc2f19450c4f60540f07
 +		return main;
 +	}
 +
-+	public List<String> getDependencies() {
-+		return dependencies;
++	public ImmutableList<String> getDependencies() {
++		return ImmutableList.copyOf(dependencies);
 +	}
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java b/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d26e1b2c5d1b70f8fde298cae9746b83b478eb5e
+index 0000000000000000000000000000000000000000..328bc043956493d486b443d0ead0225c685837a5
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/CorePluginLoader.java
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,52 @@
 +package net.drf.drfpaper.loader;
 +
++import com.google.common.graph.ImmutableGraph;
 +import org.bukkit.plugin.InvalidPluginException;
 +import org.jetbrains.annotations.NotNull;
 +
@@ -229,17 +247,43 @@ index 0000000000000000000000000000000000000000..d26e1b2c5d1b70f8fde298cae9746b83
 + * unless you are trying to implement your own core plugin system.
 + */
 +public interface CorePluginLoader {
++	/**
++	 * Loads core plugin class from a file.
++	 * Generally, this method is internal, and you shouldn't use it unless you make your own core plugins.
++	 * @param file A file of a core plugin.
++	 * @return An instance of core plugin which was pointed in a description file in a "main" parameter.
++	 * @throws InvalidPluginException If some aspects of loading core plugin were invalid.
++	 */
 +	@NotNull
 +	CorePlugin load(@NotNull File file) throws InvalidPluginException;
 +
++	/**
++	 * Loads description from core plugin resources.
++	 * This method is generally internal, if you want to have easier access to description, use {@link CorePlugin#getDescriptionFile()} instead.
++	 * @param file A file of a core plugin.
++	 * @return Description with all data initialized.
++	 * @throws InvalidCorePluginDescriptionException If description in a file in the parameter is invalid or corrupted.
++	 */
 +	@NotNull
 +	CorePluginDescriptionFile getPluginDescription(@NotNull File file) throws InvalidCorePluginDescriptionException;
 +
++	/**
++	 * @return A collection of all core plugins loaded in runtime right now.
++	 */
 +	@NotNull
 +	Collection<CorePlugin> getLoadedCorePlugins();
 +
++	/**
++	 * @return Plugin folder where core plugins are initialized
++	 */
 +	@NotNull
 +	File getPluginsFolder();
++
++	/**
++	 * @return An immutable graph structure representing how core plugins relate to each other.
++	 */
++	@NotNull
++	ImmutableGraph<CorePlugin> getDependencyGraph();
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/InvalidCorePluginDescriptionException.java b/src/main/java/net/drf/drfpaper/loader/InvalidCorePluginDescriptionException.java
 new file mode 100644
@@ -256,10 +300,10 @@ index 0000000000000000000000000000000000000000..8d9d7a2a468b34c62cc3e0a6082a1ca4
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/PluginLike.java b/src/main/java/net/drf/drfpaper/loader/PluginLike.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a6ee8b1c782187213f9b1f207244b3cdf4b252b0
+index 0000000000000000000000000000000000000000..7b7a6d89ff4839b0ca4f981f6137460b65f517e8
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/PluginLike.java
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,29 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.InputStream;
@@ -273,10 +317,16 @@ index 0000000000000000000000000000000000000000..a6ee8b1c782187213f9b1f207244b3cd
 + * and it is created only for making additional abstraction over them.
 + */
 +public interface PluginLike {
++	/**
++	 * This method fires by a plugin loading system, so users could set up and load stuff they need.
++	 */
 +	void onLoad();
 +
 +	void saveResource(@NotNull String resourcePath, boolean replace);
 +
++	/**
++	 * @return A name of a plugin-like structure.
++	 */
 +	@NotNull
 +	String getName();
 +

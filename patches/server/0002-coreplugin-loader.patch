@@ -6,10 +6,10 @@ Subject: [PATCH] coreplugin-loader
 
 diff --git a/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53ab6c0fb6
+index 0000000000000000000000000000000000000000..6395e274ff5264e6d1c9eebb83d193216bf0eae6
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/loader/DRFCorePluginLoader.java
-@@ -0,0 +1,251 @@
+@@ -0,0 +1,261 @@
 +package net.drf.drfpaper.loader;
 +
 +import java.io.File;
@@ -35,6 +35,9 @@ index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53
 +
 +import com.google.common.base.Preconditions;
 +import com.google.common.graph.GraphBuilder;
++import com.google.common.graph.Graphs;
++import com.google.common.graph.ImmutableGraph;
++import com.google.common.graph.ImmutableValueGraph;
 +import com.google.common.graph.MutableGraph;
 +import joptsimple.OptionSet;
 +import net.drf.drfpaper.DRFPaper;
@@ -137,6 +140,11 @@ index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53
 +		return pluginFolder;
 +	}
 +
++	@Override
++	public @NotNull ImmutableGraph<CorePlugin> getDependencyGraph() {
++		return dependencyOrderLoader.dependencyGraph;
++	}
++
 +	public List<DRFCorePluginClassLoader> getCorePluginClassLoaders() {
 +		return corePluginClassLoaders;
 +	}
@@ -208,42 +216,44 @@ index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53
 +
 +	@SuppressWarnings("UnstableApiUsage")
 +	public static class DependencyOrderLoader {
-+		private final MutableGraph<CorePlugin> dependencyGraph = GraphBuilder.directed()
-+				.allowsSelfLoops(false)
-+				.build();
++		private ImmutableGraph<CorePlugin> dependencyGraph;
 +		private final Map<String, CorePlugin> nameToCorePluginCache = new HashMap<>();
 +
 +		public void loadCorePluginsInDependencyOrder(final Collection<CorePlugin> corePlugins) {
++			// Just caching and preparing for graph handling.
++			ImmutableGraph.Builder<CorePlugin> dependencyGraphBuilder = GraphBuilder.directed().allowsSelfLoops(false).immutable();
 +			for (CorePlugin corePlugin : corePlugins) {
++				dependencyGraphBuilder.addNode(corePlugin);
 +				nameToCorePluginCache.put(corePlugin.getName(), corePlugin);
 +			}
 +			for (CorePlugin corePlugin : corePlugins) {
 +				final List<String> dependencyList = corePlugin.getDescriptionFile().getDependencies();
-+				if (dependencyList.isEmpty()) {
-+					executeOnLoad(corePlugin);
-+				} else {
-+					dependencyGraph.addNode(corePlugin);
-+					for (String dependencyName : dependencyList) {
-+						final CorePlugin dependent = nameToCorePluginCache.get(dependencyName);
-+						if (dependent == null)
-+							throw new RuntimeException("Core plugin `" + corePlugin.getName() + "` requires `" + dependencyName + "` to work.");
-+						dependencyGraph.addNode(dependent);
-+						dependencyGraph.putEdge(corePlugin, dependent);
-+					}
++				for (String dependencyName : dependencyList) {
++					final CorePlugin dependent = nameToCorePluginCache.get(dependencyName);
++					if (dependent == null)
++						throw new RuntimeException("Core plugin `" + corePlugin.getName() + "` requires `" + dependencyName + "` to work.");
++					dependencyGraphBuilder.putEdge(corePlugin, dependent); // false means not loaded
 +				}
 +			}
-+			final MutableGraph<CorePlugin> localDependencyGraph = dependencyGraph;
-+			for (CorePlugin node : localDependencyGraph.nodes()) {
++			dependencyGraph = dependencyGraphBuilder.build();
++			// The actual graph handling.
++			final MutableGraph<CorePlugin> localDependencyGraph = Graphs.copyOf(dependencyGraph);
++			final Deque<CorePlugin> loadedPlugins = new ArrayDeque<>();
++			for (CorePlugin node : corePlugins) {
 +				final Deque<CorePlugin> corePluginDeque = new ArrayDeque<>();
 +				corePluginDeque.push(node);
 +				while (!corePluginDeque.isEmpty()) {
-+					CorePlugin currentCorePlugin = corePluginDeque.pop();
-+					Set<CorePlugin> predecessors = localDependencyGraph.predecessors(currentCorePlugin);
-+					if (predecessors.isEmpty()) {
-+						localDependencyGraph.removeNode(currentCorePlugin);
++					final CorePlugin currentCorePlugin = corePluginDeque.pop();
++					final Set<CorePlugin> predecessors = localDependencyGraph.predecessors(currentCorePlugin);
++					boolean loaded = loadedPlugins.contains(currentCorePlugin);
++					if (predecessors.isEmpty() && !loaded ||
++							loadedPlugins.containsAll(predecessors) && !loaded) {
++						loadedPlugins.push(currentCorePlugin);
 +						executeOnLoad(currentCorePlugin);
-+						break;
++						continue;
 +					}
++					if (!loaded)
++						corePluginDeque.push(currentCorePlugin);
 +					for (CorePlugin predecessor : predecessors) {
 +						corePluginDeque.push(predecessor);
 +					}
@@ -251,7 +261,7 @@ index 0000000000000000000000000000000000000000..d5a4d32597099b4c286ab0cf97350e53
 +			}
 +		}
 +
-+		public MutableGraph<CorePlugin> getDependencyGraph() {
++		public ImmutableGraph<CorePlugin> getDependencyGraph() {
 +			return dependencyGraph;
 +		}
 +
@@ -335,3 +345,55 @@ index a659fa61bec5cc8b6a1314130228f62d3ddaa9dc..8bbb24eb8dae31851698457aef608aed
          this.onServerExit();
          // Paper end
      }
+diff --git a/src/test/java/net/drf/drfpaper/loader/DRFCorePluginLoaderTest.java b/src/test/java/net/drf/drfpaper/loader/DRFCorePluginLoaderTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d4f8837c331f2b34f4a7d0eef7aaf1091dad271
+--- /dev/null
++++ b/src/test/java/net/drf/drfpaper/loader/DRFCorePluginLoaderTest.java
+@@ -0,0 +1,46 @@
++package net.drf.drfpaper.loader;
++
++import org.jetbrains.annotations.NotNull;
++import org.junit.Test;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class DRFCorePluginLoaderTest {
++	@Test
++	public void testDependencyOrderLoader() {
++		DRFCorePluginLoader.DependencyOrderLoader dependencyOrderLoader = new DRFCorePluginLoader.DependencyOrderLoader();
++		ArrayList<CorePlugin> corepls = new ArrayList<>();
++		corepls.add(new DummyCorePlugin("a", List.of("b", "c")));
++		corepls.add(new DummyCorePlugin("c", List.of("b")));
++		corepls.add(new DummyCorePlugin("b", List.of()));
++
++		dependencyOrderLoader.loadCorePluginsInDependencyOrder(corepls);
++		System.out.println(dependencyOrderLoader.getDependencyGraph().toString());
++	}
++
++	static class DummyCorePlugin extends CorePlugin {
++		private final String name;
++		private final List<String> dependencies;
++		private boolean loaded = false;
++		public DummyCorePlugin(String name, List<String> dependencies) {
++			this.name = name;
++			this.dependencies = dependencies;
++		}
++
++		@Override
++		public void onLoad() {
++			this.loaded = true;
++		}
++
++		@Override
++		public @NotNull String getName() {
++			return name;
++		}
++
++		@Override
++		public CorePluginDescriptionFile getDescriptionFile() {
++			return CorePluginDescriptionFile.of(name, "", dependencies);
++		}
++	}
++}
