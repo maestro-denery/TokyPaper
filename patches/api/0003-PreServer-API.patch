@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Mon, 30 May 2022 22:40:08 +0300
+Subject: [PATCH] PreServer-API
+
+
+diff --git a/src/main/java/net/drf/drfpaper/api/server/PreServer.java b/src/main/java/net/drf/drfpaper/api/server/PreServer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bbdc830290db10171b52f14e500132f5cde97099
+--- /dev/null
++++ b/src/main/java/net/drf/drfpaper/api/server/PreServer.java
+@@ -0,0 +1,35 @@
++package net.drf.drfpaper.api.server;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.io.File;
++
++/**
++ * Represents server before DedicatedServer initialization, providing methods for manipulating vanilla server before bukkit api initialization.
++ */
++public interface PreServer {
++	@NotNull
++	String getMinecraftVersion();
++
++	void reloadData();
++
++	File getWorldContainer();
++
++	boolean isPrimaryThread();
++
++	int getCurrentTick();
++
++	void setIdleTimeout(int threshold);
++
++	int getIdleTimeout();
++
++	double[] getTPS();
++
++	long[] getTickTimes();
++
++	double getAverageTickTime();
++
++	boolean isStopping();
++
++	void shutdown();
++}
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 743a4091e06015b303d1eebc3b6bd393f98e4b9f..545059ff283a5cf791acebd92180e8c030f88d98 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -58,7 +58,7 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a server implementation.
+  */
+-public interface Server extends PluginMessageRecipient, net.kyori.adventure.audience.ForwardingAudience { // Paper
++public interface Server extends PluginMessageRecipient, net.kyori.adventure.audience.ForwardingAudience, net.drf.drfpaper.api.server.PreServer { // Paper // DRFPaper - PreServer API.
+ 
+     /**
+      * Returns the de facto plugins directory, generally used for storing plugin jars to be loaded,

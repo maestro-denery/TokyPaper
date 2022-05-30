@@ -1,0 +1,131 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Mon, 30 May 2022 22:41:24 +0300
+Subject: [PATCH] PreServer-API
+
+
+diff --git a/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java b/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..be2e568a16467a6da4f0b46add237b581ca61519
+--- /dev/null
++++ b/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java
+@@ -0,0 +1,89 @@
++package net.drf.drfpaper.impl.server;
++
++import java.io.File;
++
++import net.drf.drfpaper.api.server.PreServer;
++
++import net.minecraft.server.MinecraftServer;
++
++import org.jetbrains.annotations.NotNull;
++
++import net.minecraft.server.commands.ReloadCommand;
++import net.minecraft.server.dedicated.DedicatedServer;
++
++/**
++ * Mainly copied from {@link org.bukkit.craftbukkit.CraftServer}
++ */
++public final class DRFVanillaServer implements PreServer {
++	public DedicatedServer handle;
++	public DRFVanillaServer(DedicatedServer handle) {
++		this.handle = handle;
++	}
++
++	@Override
++	public @NotNull String getMinecraftVersion() {
++		return handle.getServerVersion();
++	}
++
++	@Override
++	public void reloadData() {
++		ReloadCommand.reload(handle);
++	}
++
++	@Override
++	public File getWorldContainer() {
++		return handle.storageSource.getDimensionPath(net.minecraft.world.level.Level.OVERWORLD).getParent().toFile();
++	}
++
++	@Override
++	public boolean isPrimaryThread() {
++		/**
++		 * 	copied from {@link org.bukkit.craftbukkit.CraftServer#isPrimaryThread()}
++ 		 */
++		return Thread.currentThread().equals(handle.serverThread) || Thread.currentThread().equals(net.minecraft.server.MinecraftServer.getServer().shutdownThread);
++	}
++
++	@Override
++	public int getCurrentTick() {
++		return MinecraftServer.currentTick;
++	}
++
++	@Override
++	public void setIdleTimeout(int threshold) {
++		handle.setPlayerIdleTimeout(threshold);
++	}
++
++	@Override
++	public int getIdleTimeout() {
++		return handle.getPlayerIdleTimeout();
++	}
++
++	@Override
++	public double[] getTPS() {
++		return new double[] {
++				net.minecraft.server.MinecraftServer.getServer().tps1.getAverage(),
++				net.minecraft.server.MinecraftServer.getServer().tps5.getAverage(),
++				net.minecraft.server.MinecraftServer.getServer().tps15.getAverage()
++		};
++	}
++
++	@Override
++	public long[] getTickTimes() {
++		return handle.tickTimes5s.getTimes();
++	}
++
++	@Override
++	public double getAverageTickTime() {
++		return handle.tickTimes5s.getAverage();
++	}
++
++	@Override
++	public boolean isStopping() {
++		return net.minecraft.server.MinecraftServer.getServer().hasStopped();
++	}
++
++	@Override
++	public void shutdown() {
++		handle.halt(false);
++	}
++}
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..9ffab1d65d953938da9f9ac9152e6666dfdc2bae 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -91,6 +91,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+     private final TextFilterClient textFilterClient;
+     @Nullable
+     private final Component resourcePackPrompt;
++	private final net.drf.drfpaper.impl.server.DRFVanillaServer drfVanillaServer; // DRFPaper - PreServer API
+ 
+     // CraftBukkit start - Signature changed
+     public DedicatedServer(joptsimple.OptionSet options, DataPackConfig datapackconfiguration, DynamicOps<Tag> registryreadops, Thread thread, LevelStorageSource.LevelStorageAccess convertable_conversionsession, PackRepository resourcepackrepository, WorldStem worldstem, DedicatedServerSettings dedicatedserversettings, DataFixer datafixer, MinecraftSessionService minecraftsessionservice, GameProfileRepository gameprofilerepository, GameProfileCache usercache, ChunkProgressListenerFactory worldloadlistenerfactory) {
+@@ -100,6 +101,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         this.rconConsoleSource = new RconConsoleSource(this);
+         this.textFilterClient = TextFilterClient.createFromConfig(dedicatedserversettings.getProperties().textFilteringConfig);
+         this.resourcePackPrompt = DedicatedServer.parseResourcePackPrompt(dedicatedserversettings);
++		this.drfVanillaServer = new net.drf.drfpaper.impl.server.DRFVanillaServer(this); // DRFPaper - PreServer API
+     }
+ 
+     @Override
+@@ -872,4 +874,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         return console;
+     }
+     // CraftBukkit end
++	// DRFPaper start - PreServer API
++	public net.drf.drfpaper.impl.server.DRFVanillaServer getDrfVanillaServer() {
++		return drfVanillaServer;
++	}
++	// DRFPaper end
+ }
