@@ -4,12 +4,41 @@ Date: Sun, 29 May 2022 23:51:25 +0300
 Subject: [PATCH] lifecycles
 
 
+diff --git a/src/main/java/net/drf/drfpaper/lifecycle/APILifecycles.java b/src/main/java/net/drf/drfpaper/lifecycle/APILifecycles.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e3f2e8bb2edb4c7313eee10570589fe984b8354b
+--- /dev/null
++++ b/src/main/java/net/drf/drfpaper/lifecycle/APILifecycles.java
+@@ -0,0 +1,23 @@
++package net.drf.drfpaper.lifecycle;
++
++import net.drf.event.Event;
++import net.drf.event.EventFactory;
++import org.bukkit.Server;
++
++/**
++ * Represents various lifecycles of Bukkit / Spigot / Paper APIs.
++ */
++public class APILifecycles {
++	/**
++	 * Fires right after {@link Server} instance set to {@link org.bukkit.Bukkit} "server" field.
++	 */
++	public static final Event<BukkitAPIInitialized> BUKKIT_API_INITIALIZED = EventFactory.createArrayBacked(BukkitAPIInitialized.class, listeners -> server -> {
++		for (BukkitAPIInitialized listener : listeners) {
++			listener.initialized(server);
++		}
++	});
++
++	public interface BukkitAPIInitialized {
++		void initialized(Server server);
++	}
++}
 diff --git a/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java b/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d8780079e59b68a3a7b89e6fda1f1ba535ba67d2
+index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7c99600b5
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,149 @@
 +package net.drf.drfpaper.lifecycle;
 +
 +import java.io.File;
@@ -21,59 +50,171 @@ index 0000000000000000000000000000000000000000..d8780079e59b68a3a7b89e6fda1f1ba5
 +import net.drf.event.EventFactory;
 +import net.drf.event.Result;
 +import org.bukkit.plugin.Plugin;
++import org.bukkit.plugin.PluginDescriptionFile;
++import org.bukkit.plugin.PluginLoadOrder;
++import org.bukkit.plugin.SimplePluginManager;
++import org.bukkit.plugin.java.JavaPluginLoader;
 +
++/**
++ * Represents various lifecycles of plugin loading.
++ */
 +public final class PluginLifecycles {
 +	private PluginLifecycles() {}
 +
-+	public static final Event<PluginsLoading> PLUGINS_LOADING = EventFactory.createArrayBacked(PluginsLoading.class, (listeners) -> (resultPlugin, dependencies, softDependencies) -> {
++	/**
++	 * Fires before any of plugins are loaded and before any info about them gained.
++	 */
++	public static final Event<PluginsLoadingStart> PLUGINS_LOADING_START = EventFactory.createArrayBacked(PluginsLoadingStart.class, listeners -> phase -> {
++		for (PluginsLoadingStart listener : listeners) {
++			Result result = listener.pluginsLoadingStart(phase);
++			if (result == Result.PASS || result == Result.FAIL)
++				return result;
++		}
++		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires in the middle of plugin loading, in the period when all information is gained, but before {@link Plugin#onLoad()} fires.
++	 */
++	public static final Event<PluginsLoading> PLUGINS_LOADING = EventFactory.createArrayBacked(PluginsLoading.class, (listeners) -> (simplePluginManager, resultPlugin, dependencies, softDependencies) -> {
 +		for (PluginsLoading listener : listeners) {
-+			listener.pluginsLoading(resultPlugin, dependencies, softDependencies);
++			listener.pluginsLoading(simplePluginManager, resultPlugin, dependencies, softDependencies);
 +		}
 +	});
 +
++	/**
++	 * Fires right after all plugins were loaded.
++	 */
++	public static final Event<PluginsLoadingEnd> PLUGINS_LOADING_END = EventFactory.createArrayBacked(PluginsLoadingEnd.class, listeners -> phase -> {
++		for (PluginsLoadingEnd listener : listeners) {
++			listener.pluginsLoadingEnd(phase);
++		}
++	});
++
++	/**
++	 * Fires before any of plugins are enabled.
++	 */
++	public static final Event<PluginsEnablingStart> PLUGINS_ENABLING_START = EventFactory.createArrayBacked(PluginsEnablingStart.class, listeners -> order -> {
++		for (PluginsEnablingStart listener : listeners) {
++			Result result = listener.pluginsEnablingStart(order);
++			if (result == Result.PASS || result == Result.FAIL)
++				return result;
++		}
++		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires right after all plugins were enabled.
++	 */
++	public static final Event<PluginsEnablingEnd> PLUGINS_ENABLING_END = EventFactory.createArrayBacked(PluginsEnablingEnd.class, listeners -> order -> {
++		for (PluginsEnablingEnd listener : listeners) {
++			listener.pluginsEnablingEnd(order);
++		}
++	});
++
++	/**
++	 * Fires on plugin iteration right before {@link Plugin#onLoad()} fires for each plugin.
++	 */
 +	public static final Event<PluginLoading> PLUGIN_LOADING = EventFactory.createArrayBacked(PluginLoading.class, (listeners) -> (loadingPlugins, plugin, pluginFolder) -> {
 +		for (PluginLoading listener : listeners) {
 +			Result result = listener.pluginLoading(loadingPlugins, plugin, pluginFolder);
++			if (result == Result.PASS || result == Result.FAIL)
++				return result;
++		}
++		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires on plugin iteration right before {@link Plugin#onEnable()} ()} fires for each plugin.
++	 */
++	public static final Event<PluginEnabling> PLUGIN_ENABLING = EventFactory.createArrayBacked(PluginEnabling.class, (listeners) -> (order, plugins, plugin) -> {
++		for (PluginEnabling listener : listeners) {
++			Result result = listener.pluginEnabling(order, plugins, plugin);
++			if (result == Result.PASS || result == Result.FAIL)
++				return result;
++		}
++		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires right before main class of a plugin initializes by {@link org.bukkit.plugin.java.PluginClassLoader}
++	 */
++	public static final Event<PluginClassLoading> PLUGIN_CLASS_LOADING = EventFactory.createArrayBacked(PluginClassLoading.class, listeners -> (javaPluginLoader, classLoader, descriptionFile, dataFolder, pluginFile) ->  {
++		for (PluginClassLoading listener : listeners) {
++			Result result = listener.pluginClassLoading(javaPluginLoader, classLoader, descriptionFile, dataFolder, pluginFile);
 +			if (result == Result.PASS || result == Result.FAIL)
 +				return Result.PASS;
 +		}
 +		return Result.SUCCESS;
 +	});
 +
++	public interface PluginsLoadingStart {
++		Result pluginsLoadingStart(PluginLoadingPhase phase);
++	}
++
 +	public interface PluginsLoading {
-+		void pluginsLoading(List<Plugin> resultPlugin, Map<String, Collection<String>> dependencies, Map<String, Collection<String>> softDependencies);
++		void pluginsLoading(SimplePluginManager simplePluginManager, List<Plugin> resultPlugin, Map<String, Collection<String>> dependencies, Map<String, Collection<String>> softDependencies);
++	}
++
++	public interface PluginsLoadingEnd {
++		void pluginsLoadingEnd(PluginLoadingPhase phase);
++	}
++
++	public interface PluginsEnablingStart {
++		Result pluginsEnablingStart(PluginLoadOrder order);
++	}
++
++	public interface PluginsEnablingEnd {
++		void pluginsEnablingEnd(PluginLoadOrder order);
 +	}
 +
 +	public interface PluginLoading {
 +		Result pluginLoading(Plugin[] loadingPlugins, Plugin plugin, File pluginFolder);
 +	}
++
++	public interface PluginEnabling {
++		Result pluginEnabling(PluginLoadOrder order, Plugin[] enablingPlugins, Plugin plugin);
++	}
++
++	public interface PluginClassLoading {
++		Result pluginClassLoading(JavaPluginLoader javaPluginLoader, ClassLoader classLoader, PluginDescriptionFile descriptionFile, File dataFolder, File pluginFile);
++	}
++
++	/**
++	 * Represents two plugin loading phases.
++	 */
++	public enum PluginLoadingPhase {
++		RELOAD,
++		DEDICATED_SERVER;
++	}
 +}
 diff --git a/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java b/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2267bf79acce7bf46a908ebaa6d8f2201dd6b575
+index 0000000000000000000000000000000000000000..492e72fd275d397308d8b0562637f7ee69735302
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,19 @@
 +package net.drf.drfpaper.lifecycle;
 +
++import net.drf.drfpaper.api.server.PreServer;
 +import net.drf.event.Event;
 +import net.drf.event.EventFactory;
 +
 +public final class ServerLifecycles {
 +	private ServerLifecycles() {}
 +
-+	public static final Event<ServerStarting> SERVER_STARTING = EventFactory.createArrayBacked(ServerStarting.class, (listeners) -> () -> {
++	public static final Event<ServerStarting> SERVER_STARTING = EventFactory.createArrayBacked(ServerStarting.class, (listeners) -> (server) -> {
 +		for (ServerStarting listener : listeners) {
-+			listener.starting();
++			listener.starting(server);
 +		}
 +	});
 +
 +	public interface ServerStarting {
-+		void starting();
++		void starting(PreServer server);
 +	}
 +}
 diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..15dbbc5b5a3b077d3176322454fb92f99e299198 100644
+index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..e9fa4089d92b94f18a03bffe080aec9e2829f753 100644
 --- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 +++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 @@ -379,8 +379,10 @@ public final class SimplePluginManager implements PluginManager {
@@ -82,9 +223,25 @@ index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..15dbbc5b5a3b077d3176322454fb92f9
          }
 -
 +		// DRFPaper start - Lifecycles
-+		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING.invoker().pluginsLoading(result, dependencies, softDependencies);
++		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING.invoker().pluginsLoading(this, result, dependencies, softDependencies);
          return result.toArray(new Plugin[result.size()]);
 +		// DRFPaper end
      }
  
      /**
+diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+index c8b11793c6a3baabc1c9566e0463ab1d6e293827..072bf72cd6c8738613db94db6babba22ce382578 100644
+--- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
++++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+@@ -147,7 +147,10 @@ public final class JavaPluginLoader implements PluginLoader {
+         // Paper end
+ 
+         server.getUnsafe().checkSupported(description);
+-
++		// DRFPaper start - lifecycles
++		net.drf.event.Result result = net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGIN_CLASS_LOADING.invoker().pluginClassLoading(this, getClass().getClassLoader(), description, dataFolder, file);
++		if (result == net.drf.event.Result.PASS) return null;
++		// DRFPaper end
+         final PluginClassLoader loader;
+         try {
+             loader = new PluginClassLoader(this, getClass().getClassLoader(), description, dataFolder, file, (libraryLoader != null) ? libraryLoader.createLoader(description) : null);
