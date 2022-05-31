@@ -4,11 +4,11 @@ Date: Mon, 30 May 2022 22:41:24 +0300
 Subject: [PATCH] PreServer-API
 
 
-diff --git a/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java b/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java
+diff --git a/src/main/java/net/drf/drfpaper/impl/server/DRFPreServer.java b/src/main/java/net/drf/drfpaper/impl/server/DRFPreServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..be2e568a16467a6da4f0b46add237b581ca61519
+index 0000000000000000000000000000000000000000..dc163886c2c27f7dfa58b3a99d42ede869cfc4b9
 --- /dev/null
-+++ b/src/main/java/net/drf/drfpaper/impl/server/DRFVanillaServer.java
++++ b/src/main/java/net/drf/drfpaper/impl/server/DRFPreServer.java
 @@ -0,0 +1,89 @@
 +package net.drf.drfpaper.impl.server;
 +
@@ -26,9 +26,9 @@ index 0000000000000000000000000000000000000000..be2e568a16467a6da4f0b46add237b58
 +/**
 + * Mainly copied from {@link org.bukkit.craftbukkit.CraftServer}
 + */
-+public final class DRFVanillaServer implements PreServer {
++public final class DRFPreServer implements PreServer {
 +	public DedicatedServer handle;
-+	public DRFVanillaServer(DedicatedServer handle) {
++	public DRFPreServer(DedicatedServer handle) {
 +		this.handle = handle;
 +	}
 +
@@ -99,33 +99,19 @@ index 0000000000000000000000000000000000000000..be2e568a16467a6da4f0b46add237b58
 +		handle.halt(false);
 +	}
 +}
-diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..9ffab1d65d953938da9f9ac9152e6666dfdc2bae 100644
---- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-+++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -91,6 +91,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
-     private final TextFilterClient textFilterClient;
-     @Nullable
-     private final Component resourcePackPrompt;
-+	private final net.drf.drfpaper.impl.server.DRFVanillaServer drfVanillaServer; // DRFPaper - PreServer API
- 
-     // CraftBukkit start - Signature changed
-     public DedicatedServer(joptsimple.OptionSet options, DataPackConfig datapackconfiguration, DynamicOps<Tag> registryreadops, Thread thread, LevelStorageSource.LevelStorageAccess convertable_conversionsession, PackRepository resourcepackrepository, WorldStem worldstem, DedicatedServerSettings dedicatedserversettings, DataFixer datafixer, MinecraftSessionService minecraftsessionservice, GameProfileRepository gameprofilerepository, GameProfileCache usercache, ChunkProgressListenerFactory worldloadlistenerfactory) {
-@@ -100,6 +101,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
-         this.rconConsoleSource = new RconConsoleSource(this);
-         this.textFilterClient = TextFilterClient.createFromConfig(dedicatedserversettings.getProperties().textFilteringConfig);
-         this.resourcePackPrompt = DedicatedServer.parseResourcePackPrompt(dedicatedserversettings);
-+		this.drfVanillaServer = new net.drf.drfpaper.impl.server.DRFVanillaServer(this); // DRFPaper - PreServer API
-     }
- 
-     @Override
-@@ -872,4 +874,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
-         return console;
-     }
-     // CraftBukkit end
-+	// DRFPaper start - PreServer API
-+	public net.drf.drfpaper.impl.server.DRFVanillaServer getDrfVanillaServer() {
-+		return drfVanillaServer;
-+	}
-+	// DRFPaper end
- }
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 2f7343dad6d227e9bbe94b7e5a99baa7066aa25b..db2fbe0aca4a02b3a118d1bdb66511a9715d6464 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -268,7 +268,10 @@ public class Main {
+             Class.forName(net.minecraft.world.entity.npc.VillagerTrades.class.getName());// Paper - load this sync so it won't fail later async
+             final DedicatedServer dedicatedserver = (DedicatedServer) MinecraftServer.spin((thread) -> {
+                 DedicatedServer dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(), thread, convertable_conversionsession, resourcepackrepository, worldstem, dedicatedserversettings, DataFixers.getDataFixer(), minecraftsessionservice, gameprofilerepository, usercache, LoggerChunkProgressListener::new);
+-
++				// DRFPaper start - PreServer API
++				final net.drf.drfpaper.impl.server.DRFPreServer preServer = new net.drf.drfpaper.impl.server.DRFPreServer(dedicatedserver1);
++				net.drf.drfpaper.DRFPaper.INSTANCE.setPreServer(preServer);
++				// DRFPaper end
+                 /*
+                 dedicatedserver1.setSingleplayerName((String) optionset.valueOf(optionspec8));
+                 dedicatedserver1.setPort((Integer) optionset.valueOf(optionspec11));

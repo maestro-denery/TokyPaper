@@ -6,7 +6,7 @@ Subject: [PATCH] coreplugin-loader
 
 diff --git a/src/main/java/net/drf/drfpaper/DRFPaper.java b/src/main/java/net/drf/drfpaper/DRFPaper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7be58e7da809e3796dcdd68731d09559ab8fd8b4
+index 0000000000000000000000000000000000000000..ac107913ad88e29f1f54e71f7c64fb65ef6040a6
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/DRFPaper.java
 @@ -0,0 +1,27 @@
@@ -26,15 +26,15 @@ index 0000000000000000000000000000000000000000..7be58e7da809e3796dcdd68731d09559
 +	public static final Logger logger = LoggerFactory.getLogger("DRFPaper");
 +	private CorePluginLoader corePluginLoader;
 +
++	@NotNull
++	public CorePluginLoader getCorePluginLoader() {
++		return corePluginLoader;
++	}
++
 +	public void setCorePluginLoader(@NotNull final CorePluginLoader corePluginLoader) {
 +		if (this.corePluginLoader != null)
 +			throw new UnsupportedOperationException("Cannot redefine core plugin loader twice!");
 +		this.corePluginLoader = corePluginLoader;
-+	}
-+
-+	@NotNull
-+	public CorePluginLoader getCorePluginLoader() {
-+		return corePluginLoader;
 +	}
 +}
 diff --git a/src/main/java/net/drf/drfpaper/loader/CorePlugin.java b/src/main/java/net/drf/drfpaper/loader/CorePlugin.java

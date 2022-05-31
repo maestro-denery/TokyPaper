@@ -4,6 +4,51 @@ Date: Mon, 30 May 2022 22:40:08 +0300
 Subject: [PATCH] PreServer-API
 
 
+diff --git a/src/main/java/net/drf/drfpaper/DRFPaper.java b/src/main/java/net/drf/drfpaper/DRFPaper.java
+index ac107913ad88e29f1f54e71f7c64fb65ef6040a6..ad14143b9769a33446b0a9086f5740e97a5fea1f 100644
+--- a/src/main/java/net/drf/drfpaper/DRFPaper.java
++++ b/src/main/java/net/drf/drfpaper/DRFPaper.java
+@@ -1,10 +1,13 @@
+ package net.drf.drfpaper;
+ 
++import net.drf.drfpaper.api.server.PreServer;
+ import net.drf.drfpaper.loader.CorePluginLoader;
+ import org.jetbrains.annotations.NotNull;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import java.util.Optional;
++
+ /**
+  * A main DRFPaper class containing API info, accesses to APIs and info shared between plugins.
+  */
+@@ -13,15 +16,26 @@ public final class DRFPaper {
+ 	public static final DRFPaper INSTANCE = new DRFPaper();
+ 	public static final Logger logger = LoggerFactory.getLogger("DRFPaper");
+ 	private CorePluginLoader corePluginLoader;
++	private PreServer preServer;
+ 
+ 	@NotNull
+ 	public CorePluginLoader getCorePluginLoader() {
+ 		return corePluginLoader;
+ 	}
+ 
++	public Optional<PreServer> getPreServer() {
++		return Optional.ofNullable(preServer);
++	}
++
+ 	public void setCorePluginLoader(@NotNull final CorePluginLoader corePluginLoader) {
+ 		if (this.corePluginLoader != null)
+ 			throw new UnsupportedOperationException("Cannot redefine core plugin loader twice!");
+ 		this.corePluginLoader = corePluginLoader;
+ 	}
++
++	public void setPreServer(@NotNull final PreServer preServer) {
++		if (this.preServer != null)
++			throw new UnsupportedOperationException("Cannot redefine preServer twice!");
++		this.preServer = preServer;
++	}
+ }
 diff --git a/src/main/java/net/drf/drfpaper/api/server/PreServer.java b/src/main/java/net/drf/drfpaper/api/server/PreServer.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..bbdc830290db10171b52f14e500132f5cde97099
