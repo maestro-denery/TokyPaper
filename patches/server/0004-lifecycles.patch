@@ -17,21 +17,24 @@ index 8bbb24eb8dae31851698457aef608aedca2a4fc3..b7b7b100824eb8a72b9f50e42d3f0133
                  this.nextTickTime = Util.getMillis();
                  this.status.setDescription(new TextComponent(this.motd));
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..c2b225e1d6ed69c3715fbf8e3a1522e5911b0e27 100644
+index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..e1d1eeb1d8884a04e53ad856777aa96ba17a6b2d 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -285,7 +285,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -285,8 +285,12 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
  
          // CraftBukkit start
          // this.setPlayerList(new DedicatedPlayerList(this, this.registryHolder, this.playerDataStorage)); // Spigot - moved up
-+		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_START.invoker().pluginsLoadingStart(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.DEDICATED_SERVER); // DRFPaper - lifecycles
++		net.drf.event.Result result = net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_START.invoker().pluginsLoadingStart(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.DEDICATED_SERVER);
++		if (result != net.drf.event.Result.PASS) {
          server.loadPlugins();
 +		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_END.invoker().pluginsLoadingEnd(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.DEDICATED_SERVER); // DRFPaper - lifecycles
          server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.STARTUP);
++		}
          // CraftBukkit end
  
+         if (!this.usesAuthentication()) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index d32f82b13feed3909ede1da4d443449d5ac091ba..b387e76b1251115a9acbf9a510d68df30908a113 100644
+index d32f82b13feed3909ede1da4d443449d5ac091ba..b68dde3eadf19b13f9e80bdc49ed4cb1488da8b7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -307,6 +307,7 @@ public final class CraftServer implements Server {
@@ -62,7 +65,19 @@ index d32f82b13feed3909ede1da4d443449d5ac091ba..b387e76b1251115a9acbf9a510d68df3
          if (type == PluginLoadOrder.STARTUP) {
              this.helpMap.clear();
              this.helpMap.initializeGeneralTopics();
-@@ -488,6 +495,7 @@ public final class CraftServer implements Server {
+@@ -471,6 +478,11 @@ public final class CraftServer implements Server {
+ 
+         for (Plugin plugin : plugins) {
+             if ((!plugin.isEnabled()) && (plugin.getDescription().getLoad() == type)) {
++				// DRFPaper start - lifecycles
++				net.drf.event.Result result = net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGIN_ENABLING.invoker().pluginEnabling(type, plugins, plugin);
++				if (result == net.drf.event.Result.PASS)
++					continue;
++				// DRFPaper end
+                 this.enablePlugin(plugin);
+             }
+         }
+@@ -488,6 +500,7 @@ public final class CraftServer implements Server {
              this.helpMap.initializeCommands();
              this.syncCommands();
          }
@@ -70,13 +85,19 @@ index d32f82b13feed3909ede1da4d443449d5ac091ba..b387e76b1251115a9acbf9a510d68df3
      }
  
      public void disablePlugins() {
-@@ -1011,7 +1019,9 @@ public final class CraftServer implements Server {
+@@ -1011,9 +1024,15 @@ public final class CraftServer implements Server {
              ));
              if (console.isDebugging()) io.papermc.paper.util.TraceUtil.dumpTraceForThread(worker.getThread(), "still running"); // Paper
          }
-+		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_START.invoker().pluginsLoadingStart(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.RELOAD); // DRFPaper - lifecycles
++		// DRFPaper start - lifecycles
++		net.drf.event.Result result = net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_START.invoker().pluginsLoadingStart(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.RELOAD);
++		if (result != net.drf.event.Result.PASS) {
          this.loadPlugins();
 +		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_END.invoker().pluginsLoadingEnd(net.drf.drfpaper.lifecycle.PluginLifecycles.PluginLoadingPhase.RELOAD); // DRFPaper - lifecycles
          this.enablePlugins(PluginLoadOrder.STARTUP);
          this.enablePlugins(PluginLoadOrder.POSTWORLD);
++		}
++		// DRFPaper end
          this.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.RELOAD));
+         org.spigotmc.WatchdogThread.hasStarted = true; // Paper - Disable watchdog early timeout on reload
+     }

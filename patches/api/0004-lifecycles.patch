@@ -35,10 +35,10 @@ index 0000000000000000000000000000000000000000..e3f2e8bb2edb4c7313eee10570589fe9
 +}
 diff --git a/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java b/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7c99600b5
+index 0000000000000000000000000000000000000000..b1ed80f51629ae45d9e86b9f02f323612c85e3c5
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/lifecycle/PluginLifecycles.java
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,188 @@
 +package net.drf.drfpaper.lifecycle;
 +
 +import java.io.File;
@@ -68,7 +68,7 @@ index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7
 +		for (PluginsLoadingStart listener : listeners) {
 +			Result result = listener.pluginsLoadingStart(phase);
 +			if (result == Result.PASS || result == Result.FAIL)
-+				return result;
++				return Result.PASS;
 +		}
 +		return Result.SUCCESS;
 +	});
@@ -76,39 +76,9 @@ index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7
 +	/**
 +	 * Fires in the middle of plugin loading, in the period when all information is gained, but before {@link Plugin#onLoad()} fires.
 +	 */
-+	public static final Event<PluginsLoading> PLUGINS_LOADING = EventFactory.createArrayBacked(PluginsLoading.class, (listeners) -> (simplePluginManager, resultPlugin, dependencies, softDependencies) -> {
-+		for (PluginsLoading listener : listeners) {
++	public static final Event<PluginsLoadingMiddle> PLUGINS_LOADING_MIDDLE = EventFactory.createArrayBacked(PluginsLoadingMiddle.class, (listeners) -> (simplePluginManager, resultPlugin, dependencies, softDependencies) -> {
++		for (PluginsLoadingMiddle listener : listeners) {
 +			listener.pluginsLoading(simplePluginManager, resultPlugin, dependencies, softDependencies);
-+		}
-+	});
-+
-+	/**
-+	 * Fires right after all plugins were loaded.
-+	 */
-+	public static final Event<PluginsLoadingEnd> PLUGINS_LOADING_END = EventFactory.createArrayBacked(PluginsLoadingEnd.class, listeners -> phase -> {
-+		for (PluginsLoadingEnd listener : listeners) {
-+			listener.pluginsLoadingEnd(phase);
-+		}
-+	});
-+
-+	/**
-+	 * Fires before any of plugins are enabled.
-+	 */
-+	public static final Event<PluginsEnablingStart> PLUGINS_ENABLING_START = EventFactory.createArrayBacked(PluginsEnablingStart.class, listeners -> order -> {
-+		for (PluginsEnablingStart listener : listeners) {
-+			Result result = listener.pluginsEnablingStart(order);
-+			if (result == Result.PASS || result == Result.FAIL)
-+				return result;
-+		}
-+		return Result.SUCCESS;
-+	});
-+
-+	/**
-+	 * Fires right after all plugins were enabled.
-+	 */
-+	public static final Event<PluginsEnablingEnd> PLUGINS_ENABLING_END = EventFactory.createArrayBacked(PluginsEnablingEnd.class, listeners -> order -> {
-+		for (PluginsEnablingEnd listener : listeners) {
-+			listener.pluginsEnablingEnd(order);
 +		}
 +	});
 +
@@ -125,15 +95,72 @@ index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7
 +	});
 +
 +	/**
++	 * Fires right after all plugins were loaded.
++	 */
++	public static final Event<PluginsLoadingEnd> PLUGINS_LOADING_END = EventFactory.createArrayBacked(PluginsLoadingEnd.class, listeners -> phase -> {
++		for (PluginsLoadingEnd listener : listeners) {
++			listener.pluginsLoadingEnd(phase);
++		}
++	});
++
++	/**
++	 * Fires before any of plugins are enabled.
++	 */
++	public static final Event<PluginsEnablingStart> PLUGINS_ENABLING_START = EventFactory.createArrayBacked(PluginsEnablingStart.class, listeners -> order -> {
++		for (PluginsEnablingStart listener : listeners) {
++			listener.pluginsEnablingStart(order);
++		}
++	});
++
++	/**
 +	 * Fires on plugin iteration right before {@link Plugin#onEnable()} ()} fires for each plugin.
 +	 */
 +	public static final Event<PluginEnabling> PLUGIN_ENABLING = EventFactory.createArrayBacked(PluginEnabling.class, (listeners) -> (order, plugins, plugin) -> {
 +		for (PluginEnabling listener : listeners) {
 +			Result result = listener.pluginEnabling(order, plugins, plugin);
 +			if (result == Result.PASS || result == Result.FAIL)
-+				return result;
++				return Result.PASS;
 +		}
 +		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires right after all plugins were enabled.
++	 */
++	public static final Event<PluginsEnablingEnd> PLUGINS_ENABLING_END = EventFactory.createArrayBacked(PluginsEnablingEnd.class, listeners -> order -> {
++		for (PluginsEnablingEnd listener : listeners) {
++			listener.pluginsEnablingEnd(order);
++		}
++	});
++
++	/**
++	 * Fires when a process of plugins disabling starts, but before any of plugin are disabled by it.
++	 */
++	public static final Event<PluginsDisablingStart> PLUGINS_DISABLING_START = EventFactory.createArrayBacked(PluginsDisablingStart.class, listeners -> (simplePluginManager, plugins) -> {
++		for (PluginsDisablingStart listener : listeners) {
++			listener.pluginsDisablingStart(simplePluginManager, plugins);
++		}
++	});
++
++	/**
++	 * Fires right before a plugin is going to disable.
++	 */
++	public static final Event<PluginDisabling> PLUGIN_DISABLING = EventFactory.createArrayBacked(PluginDisabling.class, listeners -> (pluginManager, plugins, plugin) -> {
++		for (PluginDisabling listener : listeners) {
++			Result result = listener.pluginDisabling(pluginManager, plugins, plugin);
++			if (result == Result.PASS || result == Result.FAIL)
++				return Result.PASS;
++		}
++		return Result.SUCCESS;
++	});
++
++	/**
++	 * Fires right after all possible plugins were disabled.
++	 */
++	public static final Event<PluginsDisablingEnd> PLUGINS_DISABLING_END = EventFactory.createArrayBacked(PluginsDisablingEnd.class, listeners -> simplePluginManager -> {
++		for (PluginsDisablingEnd listener : listeners) {
++			listener.pluginsDisablingEnd(simplePluginManager);
++		}
 +	});
 +
 +	/**
@@ -152,8 +179,12 @@ index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7
 +		Result pluginsLoadingStart(PluginLoadingPhase phase);
 +	}
 +
-+	public interface PluginsLoading {
++	public interface PluginsLoadingMiddle {
 +		void pluginsLoading(SimplePluginManager simplePluginManager, List<Plugin> resultPlugin, Map<String, Collection<String>> dependencies, Map<String, Collection<String>> softDependencies);
++	}
++
++	public interface PluginLoading {
++		Result pluginLoading(Plugin[] loadingPlugins, Plugin plugin, File pluginFolder);
 +	}
 +
 +	public interface PluginsLoadingEnd {
@@ -161,19 +192,27 @@ index 0000000000000000000000000000000000000000..12cf5b8be988828d238bf76ad5fc07a7
 +	}
 +
 +	public interface PluginsEnablingStart {
-+		Result pluginsEnablingStart(PluginLoadOrder order);
++		void pluginsEnablingStart(PluginLoadOrder order);
++	}
++
++	public interface PluginEnabling {
++		Result pluginEnabling(PluginLoadOrder order, Plugin[] enablingPlugins, Plugin plugin);
 +	}
 +
 +	public interface PluginsEnablingEnd {
 +		void pluginsEnablingEnd(PluginLoadOrder order);
 +	}
 +
-+	public interface PluginLoading {
-+		Result pluginLoading(Plugin[] loadingPlugins, Plugin plugin, File pluginFolder);
++	public interface PluginsDisablingStart {
++		void pluginsDisablingStart(SimplePluginManager pluginManager, Plugin[] plugins);
 +	}
 +
-+	public interface PluginEnabling {
-+		Result pluginEnabling(PluginLoadOrder order, Plugin[] enablingPlugins, Plugin plugin);
++	public interface PluginDisabling {
++		Result pluginDisabling(SimplePluginManager pluginManager, Plugin[] plugins, Plugin plugin);
++	}
++
++	public interface PluginsDisablingEnd {
++		void pluginsDisablingEnd(SimplePluginManager pluginManager);
 +	}
 +
 +	public interface PluginClassLoading {
@@ -214,7 +253,7 @@ index 0000000000000000000000000000000000000000..492e72fd275d397308d8b0562637f7ee
 +	}
 +}
 diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..e9fa4089d92b94f18a03bffe080aec9e2829f753 100644
+index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..1c2d771800ba5941d2afa2aeb1d3f8efa54d7e55 100644
 --- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 +++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
 @@ -379,8 +379,10 @@ public final class SimplePluginManager implements PluginManager {
@@ -223,12 +262,31 @@ index bab8bb3a52cdeef5f7052d4e3f404c42f37d117d..e9fa4089d92b94f18a03bffe080aec9e
          }
 -
 +		// DRFPaper start - Lifecycles
-+		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING.invoker().pluginsLoading(this, result, dependencies, softDependencies);
++		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_LOADING_MIDDLE.invoker().pluginsLoading(this, result, dependencies, softDependencies);
          return result.toArray(new Plugin[result.size()]);
 +		// DRFPaper end
      }
  
      /**
+@@ -551,9 +553,16 @@ public final class SimplePluginManager implements PluginManager {
+     @Override
+     public void disablePlugins() {
+         Plugin[] plugins = getPlugins();
++		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_DISABLING_START.invoker().pluginsDisablingStart(this, plugins); // DRFPaper - lifecycles
+         for (int i = plugins.length - 1; i >= 0; i--) {
+-            disablePlugin(plugins[i]);
+-        }
++			// DRFPaper start - lifecycles
++			final Plugin plugin = plugins[i];
++			net.drf.event.Result result = net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGIN_DISABLING.invoker().pluginDisabling(this, plugins, plugin);
++			if (result == net.drf.event.Result.PASS) continue;
++            disablePlugin(plugin);
++			// DRFPaper end
++        }
++		net.drf.drfpaper.lifecycle.PluginLifecycles.PLUGINS_DISABLING_END.invoker().pluginsDisablingEnd(this); // DRFPaper - lifecycles
+     }
+ 
+     // Paper start
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 index c8b11793c6a3baabc1c9566e0463ab1d6e293827..072bf72cd6c8738613db94db6babba22ce382578 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
