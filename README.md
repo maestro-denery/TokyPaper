@@ -16,12 +16,18 @@ Core plugins are plugins which load before Minecraft's game content initializati
 #### Why is it needed?
 Core plugins are needed for many things, but the main reason is a modification of Minecraft's game content with a minimal amount of hacks, and also having compatibility with usual bukkit plugins. Core plugins have their own, small, but powerful API elements. And also they can normally use [DRF](https://github.com/maestro-denery/DRF) implementation in DRFPaper.
 
-### Lifecycles
+### Lifecycle events
 Lifecycles are events which show that the state of a server has changed. This covers different steps of server initialization, minecraft game content initialization, Bukkit API initialization, etc. For this purposes we use our own event system, mainly inspired by the design of Fabric's one, because Bukkit event system is too Bukkit API dependent.
 
+### PreServer API
+Pre-server API is an API providing control over a server before Bukkit's `CraftServer` (and Bukkit API) initialization. This API is fully compatible with `org.bukkit.Server` and also exposes it a bit.
+
 #### TODO List:
-* Better core plugin management API
-* Lightweight events and Lifecycles
-* Regsitry, resources, data, tags, datapacks (and other) framework (DRF) implementation.
-* DRF DataAddons integration
-* Documentation and Wiki
+* Improve lifecycles
+* Basic registry interfaces implementation (DRF)
+* Registry events (DRF)
+* Improve PreServer API
+* WorldStem API
+* Datapack API
+* DRF "data addons" integration
+* Better documentation and Wiki
