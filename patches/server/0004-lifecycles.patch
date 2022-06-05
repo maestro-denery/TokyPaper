@@ -5,17 +5,52 @@ Subject: [PATCH] lifecycles
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 8bbb24eb8dae31851698457aef608aedca2a4fc3..b7b7b100824eb8a72b9f50e42d3f0133c1dff54c 100644
+index 8bbb24eb8dae31851698457aef608aedca2a4fc3..f508c31803ea74fcf0f3962a45e657fc355935f4 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1169,6 +1169,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -972,6 +972,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.server.waitForAsyncTasksShutdown(); // Paper
+         }
+         // CraftBukkit end
++		net.drf.drfpaper.lifecycle.ServerLifecycles.SERVER_STOPPING.invoker().stopping(Bukkit.getServer()); // DRFPaper - lifecycles
+         if (this.getConnection() != null) {
+             this.getConnection().stop();
+         }
+@@ -1063,6 +1064,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             net.minecrell.terminalconsole.TerminalConsoleAppender.close(); // Paper - Use TerminalConsoleAppender
+         } catch (Exception e) {
+         }
++		net.drf.drfpaper.lifecycle.ServerLifecycles.SERVER_STOPPED.invoker().serverStopped(Bukkit.getServer()); // DRFPaper - lifecycles
+ 		// DRFPaper start - core plugin shutting down
+ 		net.drf.drfpaper.loader.DRFCorePluginLoader.INSTANCE.getCorePluginClassLoaders().forEach(corePluginClassLoader -> {
+ 			try {
+@@ -1169,7 +1171,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      protected void runServer() {
          try {
              long serverStartTime = Util.getNanos(); // Paper
 +			net.drf.drfpaper.lifecycle.ServerLifecycles.SERVER_STARTING.invoker().starting(net.drf.drfpaper.DRFPaper.INSTANCE.getPreServer().get()); // DRFPaper - lifecycles
              if (this.initServer()) {
++				net.drf.drfpaper.lifecycle.ServerLifecycles.SERVER_STARTED.invoker().started(org.bukkit.Bukkit.getServer()); // DRFPaper - lifecycles
                  this.nextTickTime = Util.getMillis();
                  this.status.setDescription(new TextComponent(this.motd));
+                 this.status.setVersion(new ServerStatus.Version(SharedConstants.getCurrentVersion().getName(), SharedConstants.getCurrentVersion().getProtocolVersion()));
+@@ -2052,6 +2056,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     }
+     public CompletableFuture<Void> reloadResources(Collection<String> dataPacks, io.papermc.paper.event.server.ServerResourcesReloadedEvent.Cause cause) {
+         // Paper end
++		net.drf.drfpaper.lifecycle.ServerLifecycles.DATA_PACK_RELOAD_START.invoker().datapackReloadStart(Bukkit.getServer(), dataPacks, cause);
+         RegistryAccess.Frozen iregistrycustom_dimension = this.registryAccess();
+         CompletableFuture<Void> completablefuture = CompletableFuture.supplyAsync(() -> {
+             Stream<String> stream = dataPacks.stream(); // CraftBukkit - decompile error
+@@ -2091,7 +2096,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.functionManager.replaceLibrary(this.resources.managers.getFunctionLibrary());
+             this.structureManager.onResourceManagerReload(this.resources.resourceManager);
+             org.bukkit.craftbukkit.block.data.CraftBlockData.reloadCache(); // Paper - cache block data strings, they can be defined by datapacks so refresh it here
+-        }, this);
++        }, this).handleAsync((value, throwable) -> { net.drf.drfpaper.lifecycle.ServerLifecycles.DATA_PACK_RELOAD_END.invoker().datapackReloadEnd(Bukkit.getServer(), dataPacks, cause, throwable); return value; }); // DRFPaper - lifecycles
+ 
+         if (this.isSameThread()) {
+             Objects.requireNonNull(completablefuture);
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..e1d1eeb1d8884a04e53ad856777aa96ba17a6b2d 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java

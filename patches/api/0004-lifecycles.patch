@@ -229,27 +229,104 @@ index 0000000000000000000000000000000000000000..b1ed80f51629ae45d9e86b9f02f32361
 +}
 diff --git a/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java b/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..492e72fd275d397308d8b0562637f7ee69735302
+index 0000000000000000000000000000000000000000..96ea85293e274c2d615ebb3bee5f3bb7dc76c4dc
 --- /dev/null
 +++ b/src/main/java/net/drf/drfpaper/lifecycle/ServerLifecycles.java
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,96 @@
 +package net.drf.drfpaper.lifecycle;
 +
++import io.papermc.paper.event.server.ServerResourcesReloadedEvent;
 +import net.drf.drfpaper.api.server.PreServer;
 +import net.drf.event.Event;
 +import net.drf.event.EventFactory;
++import org.bukkit.Server;
 +
++import java.util.Collection;
++
++/**
++ * Server lifecycle events, generally similar to Fabric API ones.
++ */
 +public final class ServerLifecycles {
 +	private ServerLifecycles() {}
 +
-+	public static final Event<ServerStarting> SERVER_STARTING = EventFactory.createArrayBacked(ServerStarting.class, (listeners) -> (server) -> {
++	/**
++	 * Fires before any worlds have loaded and Bukkit API is initialized
++	 */
++	public static final Event<ServerStarting> SERVER_STARTING = EventFactory.createArrayBacked(ServerStarting.class, listeners -> server -> {
 +		for (ServerStarting listener : listeners) {
 +			listener.starting(server);
 +		}
 +	});
 +
++	/**
++	 * Fires after worlds have loaded and Bukkit API has initialized, but before any tick has occurred.
++	 */
++	public static final Event<ServerStarted> SERVER_STARTED = EventFactory.createArrayBacked(ServerStarted.class, listeners -> server -> {
++		for (ServerStarted listener : listeners) {
++			listener.started(server);
++		}
++	});
++
++	/**
++	 * Fires when stopping process has started, but before network channel has disabled, any player has disconnected, but after the {@link org.bukkit.plugin.Plugin#onDisable()} call.
++	 *
++	 * <p>All worlds are available for modifications.
++	 */
++	public static final Event<ServerStopping> SERVER_STOPPING = EventFactory.createArrayBacked(ServerStopping.class, listeners -> server -> {
++		for (ServerStopping listener : listeners) {
++			listener.stopping(server);
++		}
++	});
++
++	/**
++	 * Fires when networking has stopped, players and worlds have unloaded.
++	 */
++	public static final Event<ServerStopped> SERVER_STOPPED = EventFactory.createArrayBacked(ServerStopped.class, listeners -> server -> {
++		for (ServerStopped listener : listeners) {
++			listener.serverStopped(server);
++		}
++	});
++
++	/**
++	 * Fires when datapack reloading starts.
++	 */
++	public static final Event<DatapackReloadStart> DATA_PACK_RELOAD_START = EventFactory.createArrayBacked(DatapackReloadStart.class, listeners -> (server, datapacks, cause) -> {
++		for (DatapackReloadStart listener : listeners) {
++			listener.datapackReloadStart(server, datapacks, cause);
++		}
++	});
++
++	/**
++	 * Fires when datapack reload ends.
++	 */
++	public static final Event<DatapackReloadEnd> DATA_PACK_RELOAD_END = EventFactory.createArrayBacked(DatapackReloadEnd.class, listeners -> (server, datapacks, cause, throwable) -> {
++		for (DatapackReloadEnd listener : listeners) {
++			listener.datapackReloadEnd(server, datapacks, cause, throwable);
++		}
++	});
++
 +	public interface ServerStarting {
 +		void starting(PreServer server);
++	}
++
++	public interface ServerStarted {
++		void started(Server server);
++	}
++
++	public interface ServerStopping {
++		void stopping(Server server);
++	}
++
++	public interface ServerStopped {
++		void serverStopped(Server server);
++	}
++
++	public interface DatapackReloadStart {
++		void datapackReloadStart(Server server, Collection<String> datapacks, ServerResourcesReloadedEvent.Cause cause);
++	}
++
++	public interface DatapackReloadEnd {
++		void datapackReloadEnd(Server server, Collection<String> datapacks, ServerResourcesReloadedEvent.Cause cause, Throwable throwable);
 +	}
 +}
 diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
