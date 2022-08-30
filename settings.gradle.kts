@@ -5,11 +5,10 @@ pluginManagement {
     }
 }
 
-rootProject.name = "DRFPaper"
+rootProject.name = "TokyPaper"
 
 include(
-    "drf-paper-api",
-    "drf-paper-server",
-    "drf-mojang-api",
+    "toky-paper-api",
+    "toky-paper-server",
     "test-plugin"
 )

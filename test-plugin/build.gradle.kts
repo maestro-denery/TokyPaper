@@ -1,8 +1,7 @@
 version = "1.0.0-SNAPSHOT"
 
 dependencies {
-    compileOnly(project(":drf-paper-api"))
-    compileOnly(project(":drf-mojang-api"))
+    compileOnly(project(":toky-paper-api"))
 }
 
 tasks.processResources {

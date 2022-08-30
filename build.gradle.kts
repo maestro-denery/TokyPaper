@@ -4,7 +4,7 @@ plugins {
     java
     `maven-publish`
     id("com.github.johnrengelman.shadow") version "7.1.2" apply false
-    id("io.papermc.paperweight.patcher") version "1.3.5"
+    id("io.papermc.paperweight.patcher") version "1.3.8"
 }
 
 repositories {
@@ -52,7 +52,7 @@ subprojects {
 }
 
 paperweight {
-    serverProject.set(project(":drf-paper-server"))
+    serverProject.set(project(":toky-paper-server"))
 
     remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
@@ -60,26 +60,28 @@ paperweight {
     usePaperUpstream(providers.gradleProperty("paperRef")) {
         withPaperPatcher {
             apiPatchDir.set(layout.projectDirectory.dir("patches/api"))
-            apiOutputDir.set(layout.projectDirectory.dir("drf-paper-api"))
+            apiOutputDir.set(layout.projectDirectory.dir("toky-paper-api"))
 
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
-            serverOutputDir.set(layout.projectDirectory.dir("drf-paper-server"))
+            serverOutputDir.set(layout.projectDirectory.dir("toky-paper-server"))
         }
+        /* - Maybe someday in the future it'll be used...
         patchTasks {
             register("mojangApi") {
                 isBareDirectory.set(true)
                 upstreamDirPath.set("Paper-MojangAPI")
                 patchDir.set(layout.projectDirectory.dir("patches/mojangapi"))
-                outputDir.set(layout.projectDirectory.dir("drf-mojang-api"))
+                outputDir.set(layout.projectDirectory.dir("toky-mojang-api"))
             }
         }
+         */
     }
 }
 
 tasks {
     generateDevelopmentBundle {
-        apiCoordinates.set("net.drf.drfpaper:drf-paper-api")
-        mojangApiCoordinates.set("net.drf.drfpaper:drf-mojang-api")
+        apiCoordinates.set("io.toky.tokypaper:toky-paper-api")
+        // mojangApiCoordinates.set("io.toky.tokypaper:toky-mojang-api")
         libraryRepositories.set(
             listOf(
                 "https://repo.maven.apache.org/maven2/",
