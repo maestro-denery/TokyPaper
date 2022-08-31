@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Thu, 1 Sep 2022 00:38:04 +0300
+Subject: [PATCH] Paper-Plugins-toky-additions
+
+
+diff --git a/src/main/java/org/bukkit/plugin/PluginManager.java b/src/main/java/org/bukkit/plugin/PluginManager.java
+index 97d498cf3c3545e2835fe0d4c5e4fe9f121014b3..9d23ec4b47650e371f5ecffd901b4b1d8b218f9f 100644
+--- a/src/main/java/org/bukkit/plugin/PluginManager.java
++++ b/src/main/java/org/bukkit/plugin/PluginManager.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.plugin;
+ 
+ import java.io.File;
++import java.util.List;
+ import java.util.Set;
+ 
+ import io.papermc.paper.plugin.configuration.PluginConfiguration;
+@@ -335,4 +336,9 @@ public interface PluginManager extends io.papermc.paper.plugin.PermissionManager
+      */
+     void overridePermissionManager(@Nullable Plugin plugin, @Nullable io.papermc.paper.plugin.PermissionManager permissionManager);
+     // Paper end
++
++	// TokyPaper start
++	@NotNull
++	List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers();
++	// TokyPaper end
+ }
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index 6ceb05588495ef78d939c4d742a4a3f3f52e1a13..6c3298ffb4901f4f8b14caaacff0b7179bc8a4c2 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -1044,4 +1044,12 @@ public final class SimplePluginManager implements PluginManager {
+         this.paperPluginManager.addPermissions(perm);
+     }
+     // Paper end
++	// TokyPaper start
++
++	@Override
++	public @NotNull List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers() {
++		return paperPluginManager.getPluginBootstrappers();
++	}
++
++	// TOkyPaper end
+ }

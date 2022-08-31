@@ -1,0 +1,9 @@
+name: TokyPaper-Test-Plugin
+version: ${version}
+main: io.toky.tokypaper.testplugin.TestPlugin
+description: TokyPaper Test Plugin
+author: Denery
+api-version: ${apiversion}
+load: STARTUP
+bootstrapper: io.toky.tokypaper.testplugin.TestPluginBootstrap
+defaultPerm: FALSE

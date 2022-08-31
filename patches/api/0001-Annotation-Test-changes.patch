@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Wed, 31 Aug 2022 01:51:57 +0300
+Subject: [PATCH] Annotation-Test-changes
+
+
+diff --git a/src/test/java/org/bukkit/AnnotationTest.java b/src/test/java/org/bukkit/AnnotationTest.java
+index bbe81f7a420f913ffdcad913a3c43ff41ead41f5..78e0948dcb0620608c264b3649fa5ce029e746e9 100644
+--- a/src/test/java/org/bukkit/AnnotationTest.java
++++ b/src/test/java/org/bukkit/AnnotationTest.java
+@@ -189,6 +189,11 @@ public class AnnotationTest {
+             // Exceptions are excluded
+             return false;
+         }
++		// Paper start
++		if (isInternal(clazz.invisibleAnnotations)) {
++			return false;
++		}
++		// Paper end
+ 
+         for (String excludedClass : EXCLUDED_CLASSES) {
+             if (excludedClass.equals(clazz.name)) {
+@@ -219,10 +224,29 @@ public class AnnotationTest {
+         if ("<init>".equals(method.name) && isAnonymous(clazz)) {
+             return false;
+         }
++		// Paper start
++		if (isInternal(method.invisibleAnnotations)) {
++			return false;
++		}
++		// Paper end
+ 
+         return true;
+     }
+-
++	// Paper start
++    private static boolean isInternal(List<? extends AnnotationNode> annotations) {
++		if (annotations == null) {
++			return false;
++		}
++
++		for (AnnotationNode annotationNode : annotations) {
++			if (annotationNode.desc.equals("Lorg/jetbrains/annotations/ApiStatus$Internal;")) {
++				return true;
++			}
++		}
++
++		return false;
++	}
++	// Paper end
+     private static boolean isWellAnnotated(@Nullable List<? extends AnnotationNode> annotations) { // Paper
+         if (annotations == null) {
+             return false;

@@ -15,9 +15,9 @@ repositories {
     }
 }
 
-dependencies {
-    remapper("net.fabricmc:tiny-remapper:0.8.1:fat")
-    decompiler("net.minecraftforge:forgeflower:1.5.498.22")
+dependencies { // Daily reminder to update remapper, decompiler and paperclip if needed.
+    remapper("net.fabricmc:tiny-remapper:0.8.2:fat")
+    decompiler("net.minecraftforge:forgeflower:1.5.605.7")
     paperclip("io.papermc:paperclip:3.0.2")
 }
 
@@ -81,7 +81,7 @@ paperweight {
 tasks {
     generateDevelopmentBundle {
         apiCoordinates.set("io.toky.tokypaper:toky-paper-api")
-        // mojangApiCoordinates.set("io.toky.tokypaper:toky-mojang-api")
+        mojangApiCoordinates.set("io.papermc.paper:paper-mojangapi")
         libraryRepositories.set(
             listOf(
                 "https://repo.maven.apache.org/maven2/",
