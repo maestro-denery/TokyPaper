@@ -65,7 +65,6 @@ paperweight {
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
             serverOutputDir.set(layout.projectDirectory.dir("toky-paper-server"))
         }
-        /* - Maybe someday in the future it'll be used...
         patchTasks {
             register("mojangApi") {
                 isBareDirectory.set(true)
@@ -74,14 +73,13 @@ paperweight {
                 outputDir.set(layout.projectDirectory.dir("toky-mojang-api"))
             }
         }
-         */
     }
 }
 
 tasks {
     generateDevelopmentBundle {
         apiCoordinates.set("io.toky.tokypaper:toky-paper-api")
-        mojangApiCoordinates.set("io.papermc.paper:paper-mojangapi")
+        mojangApiCoordinates.set("io.toky.tokypaper:toky-mojang-api")
         libraryRepositories.set(
             listOf(
                 "https://repo.maven.apache.org/maven2/",

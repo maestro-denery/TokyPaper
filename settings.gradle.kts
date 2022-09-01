@@ -10,5 +10,6 @@ rootProject.name = "TokyPaper"
 include(
     "toky-paper-api",
     "toky-paper-server",
+    "toky-mojang-api",
     "test-plugin"
 )
