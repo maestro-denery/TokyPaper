@@ -5,7 +5,7 @@ Subject: [PATCH] PreServer-API
 
 
 diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
-index be11dbf67508fe5ecd744403881ffa7300c689fb..a3cb8e073db1cb0b1cc389fb73ff118595a7e45c 100644
+index be11dbf67508fe5ecd744403881ffa7300c689fb..17521248be800080e2484a15b42cbf5868b29aa7 100644
 --- a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
 +++ b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
 @@ -14,22 +14,17 @@ import java.lang.reflect.Method;
@@ -29,7 +29,7 @@ index be11dbf67508fe5ecd744403881ffa7300c689fb..a3cb8e073db1cb0b1cc389fb73ff1185
 +        if (event.isAsynchronous() && isPrimaryThread()) {
              throw new IllegalStateException(event.getEventName() + " may only be triggered asynchronously.");
 -        } else if (!event.isAsynchronous() && !this.server.isPrimaryThread() && !this.server.isStopping()) {
-+        } else if (!event.isAsynchronous() && !isPrimaryThread() && !net.minecraft.server.MinecraftServer.getServer().hasStopped()) {
++        } else if (!event.isAsynchronous() && !isPrimaryThread() && !hasServerStopped()) {
              throw new IllegalStateException(event.getEventName() + " may only be triggered synchronously.");
          }
 -
@@ -64,13 +64,19 @@ index be11dbf67508fe5ecd744403881ffa7300c689fb..a3cb8e073db1cb0b1cc389fb73ff1185
                      if (!warningState.printFor(warning)) {
                          break;
                      }
-@@ -179,4 +174,9 @@ class PaperEventManager {
+@@ -179,4 +174,15 @@ class PaperEventManager {
      public void clearEvents() {
          HandlerList.unregisterAll();
      }
 +	// TokyPaper start
 +	private static boolean isPrimaryThread() {
-+		return Thread.currentThread().equals(net.minecraft.server.MinecraftServer.getServer().serverThread) || Thread.currentThread().equals(net.minecraft.server.MinecraftServer.getServer().shutdownThread);
++		final Optional<net.minecraft.server.MinecraftServer> server = Optional.ofNullable(net.minecraft.server.MinecraftServer.getServer());
++		return Thread.currentThread().equals(server.map(s -> s.serverThread).orElse(net.minecraft.server.Main.getMainThread())) ||
++				Thread.currentThread().equals(server.map(s -> s.shutdownThread).orElse(net.minecraft.server.Main.getMainThread())); // Is this the most perfect solution?
++	}
++
++	private static boolean hasServerStopped() {
++		return Optional.ofNullable(net.minecraft.server.MinecraftServer.getServer()).map(net.minecraft.server.MinecraftServer::hasStopped).orElse(false);
 +	}
 +	// TokyPaper end
  }
@@ -283,21 +289,28 @@ index dd0143f319d4adef8834c513af34b1cce7a94a84..e8b450b08e6138d2b45c6fc5ab57c987
      // CraftBukkit end
  
 diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
-index 6229c360a760559fdbfa8a88716935a5a88f22ef..9fd4d0616b773aa7f77006f63634ba993f15ca67 100644
+index 6229c360a760559fdbfa8a88716935a5a88f22ef..3714ca4bd23143e4fd5395b14efe9b6ae5ff7f45 100644
 --- a/src/main/java/net/minecraft/server/Main.java
 +++ b/src/main/java/net/minecraft/server/Main.java
-@@ -65,6 +65,10 @@ public class Main {
+@@ -65,11 +65,17 @@ public class Main {
  
      private static final Logger LOGGER = LogUtils.getLogger();
      public static Path pluginDirectory;
 +	// TokyPaper start - PreServer API
++	private static Thread mainThread;
 +	private static io.toky.tokypaper.ServerConfigurationImpl serverConfiguration;
 +	private static final io.papermc.paper.plugin.manager.PaperEventManager eventManager = new io.papermc.paper.plugin.manager.PaperEventManager();
 +	// TokyPaper end
  
      public Main() {}
  
-@@ -104,6 +108,10 @@ public class Main {
+     @DontObfuscate
+     public static void main(final OptionSet optionset) { // CraftBukkit - replaces main(String[] astring)
++		Main.mainThread = Thread.currentThread(); // TokyPaper
+         SharedConstants.tryDetectVersion();
+         /* CraftBukkit start - Replace everything
+         OptionParser optionparser = new OptionParser();
+@@ -104,6 +110,10 @@ public class Main {
              if (optionset.has("jfrProfile")) { // CraftBukkit
                  JvmProfiler.INSTANCE.start(Environment.SERVER);
              }
@@ -308,7 +321,7 @@ index 6229c360a760559fdbfa8a88716935a5a88f22ef..9fd4d0616b773aa7f77006f63634ba99
  			// Paper start
  			io.papermc.paper.plugin.provider.service.classloader.PaperClassloaderBytecodeModifier.init();
  			io.papermc.paper.plugin.provider.source.Providers provider = io.papermc.paper.plugin.provider.source.Providers.INSTANCE;
-@@ -271,6 +279,7 @@ public class Main {
+@@ -271,6 +281,7 @@ public class Main {
              Class.forName(net.minecraft.world.entity.npc.VillagerTrades.class.getName());// Paper - load this sync so it won't fail later async
              final DedicatedServer dedicatedserver = (DedicatedServer) MinecraftServer.spin((thread) -> {
                  DedicatedServer dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(), thread, convertable_conversionsession, resourcepackrepository, worldstem, dedicatedserversettings, DataFixers.getDataFixer(), services, LoggerChunkProgressListener::new);
@@ -316,7 +329,7 @@ index 6229c360a760559fdbfa8a88716935a5a88f22ef..9fd4d0616b773aa7f77006f63634ba99
  
                  /*
                  dedicatedserver1.setSingleplayerProfile(optionset.has(optionspec8) ? new GameProfile((UUID) null, (String) optionset.valueOf(optionspec8)) : null);
-@@ -318,6 +327,15 @@ public class Main {
+@@ -318,6 +329,20 @@ public class Main {
          worldUpgrader.convert();
      }
      // Paper end - fix and optimise world upgrading
@@ -328,6 +341,11 @@ index 6229c360a760559fdbfa8a88716935a5a88f22ef..9fd4d0616b773aa7f77006f63634ba99
 +	public static io.papermc.paper.plugin.manager.PaperEventManager getEventManager() {
 +		return eventManager;
 +	}
++
++	public static Thread getMainThread() {
++		return mainThread;
++	}
++
 +	// TokyPaper end
  
      public static void forceUpgrade(LevelStorageSource.LevelStorageAccess session, DataFixer dataFixer, boolean eraseCache, BooleanSupplier continueCheck, WorldGenSettings generatorOptions) {

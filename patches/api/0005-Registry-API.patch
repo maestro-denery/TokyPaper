@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Fri, 2 Sep 2022 22:01:00 +0300
+Subject: [PATCH] Registry-API
+
+
+diff --git a/src/main/java/io/toky/tokypaper/event/RegistriesLoadedEvent.java b/src/main/java/io/toky/tokypaper/event/RegistriesLoadedEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d7da4e3309fe2a2c12e5d77133a93aa538744006
+--- /dev/null
++++ b/src/main/java/io/toky/tokypaper/event/RegistriesLoadedEvent.java
+@@ -0,0 +1,22 @@
++package io.toky.tokypaper.event;
++
++import org.bukkit.event.Event;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called when built-in registries are loaded but haven't frozen yet.
++ */
++public final class RegistriesLoadedEvent extends Event {
++	private static final HandlerList handlers = new HandlerList();
++
++	@Override
++	public @NotNull HandlerList getHandlers() {
++		return handlers;
++	}
++
++	@NotNull
++	public static HandlerList getHandlerList() {
++		return handlers;
++	}
++}

@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Denery <dorofeevij@gmail.com>
+Date: Fri, 2 Sep 2022 21:55:55 +0300
+Subject: [PATCH] Registry-API
+
+
+diff --git a/src/main/java/net/minecraft/server/Bootstrap.java b/src/main/java/net/minecraft/server/Bootstrap.java
+index 0ece775ca7e63184f79fcdd1aa7ed5c16fc9bc9e..dbcb0580cf14d47f951cbbcf0aa1eb742e9f9c14 100644
+--- a/src/main/java/net/minecraft/server/Bootstrap.java
++++ b/src/main/java/net/minecraft/server/Bootstrap.java
+@@ -76,6 +76,7 @@ public class Bootstrap {
+                     DispenseItemBehavior.bootStrap();
+                     CauldronInteraction.bootStrap();
+                     Registry.register(net.minecraft.core.Registry.CONDITION, new net.minecraft.resources.ResourceLocation("paper", "bedrock_condition_source"), net.minecraft.data.worldgen.SurfaceRuleData.PaperBedrockConditionSource.CODEC.codec()); // Paper - register custom flat bedrock thing. TODO is this the best place to do this?
++					io.toky.tokypaper.TokyPaper.getEventManager().callEvent(new io.toky.tokypaper.event.RegistriesLoadedEvent()); // TokyPaper
+                     Registry.freezeBuiltins();
+                     Bootstrap.wrapStreams();
+                 }
