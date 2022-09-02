@@ -4,35 +4,48 @@ Date: Thu, 1 Sep 2022 00:39:19 +0300
 Subject: [PATCH] Paper-Plugins-toky-additions
 
 
-diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
-index 5ed863fddf9fb1cad1261b1e865dfc2f768970f1..4f572d70ab01291ce50881965ca43e5706ff3a6d 100644
---- a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
-+++ b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
-@@ -216,6 +216,15 @@ public class PaperPluginManagerImpl implements PluginManager, DependencyContext
-     public void overridePermissionManager(@Nullable Plugin plugin, @Nullable PermissionManager permissionManager) {
-         this.permissionManager = permissionManager;
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/ServerEntryPointHandler.java b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/ServerEntryPointHandler.java
+index b8616cb2537dc3e27d3dee008f8a50837a13a286..13bc401c07e859800e448a6df63f798d1fd4c007 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/ServerEntryPointHandler.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/ServerEntryPointHandler.java
+@@ -15,7 +15,11 @@ public class ServerEntryPointHandler implements EntrypointHandler {
+     private final Map<Entrypoint<?>, ProviderStorage<?>> storage = new HashMap<>();
+ 
+     public ServerEntryPointHandler() {
+-        this.storage.put(Entrypoint.BOOTSTRAPPER, new BootstrapProviderStorage());
++		// TokyPaper start
++		BootstrapProviderStorage bootstrapProviderStorage = new BootstrapProviderStorage();
++		io.toky.tokypaper.TokyPaper.setPluginBootstrapManager(bootstrapProviderStorage::getPluginBootstrappers);
++		this.storage.put(Entrypoint.BOOTSTRAPPER, bootstrapProviderStorage);
++		// TokyPaper end
+         this.storage.put(Entrypoint.PLUGIN, new ServerPluginProviderStorage());
      }
+ 
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
+index 6a30e697c3391b9cef814f33e5eb3f7502727df1..f52588e60f74e2182107e5383af58528ff905f73 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
+@@ -20,6 +20,15 @@ import java.util.logging.Logger;
+ public class BootstrapProviderStorage extends OrderedProviderStorage<PluginBootstrap> {
+ 
+     private static final Logger LOGGER = Logger.getLogger("BootstrapProviderStorage");
 +	// TokyPaper start
-+	public final List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> bootstrappers = new java.util.ArrayList<>();
++	private final List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> bootstrappers = new java.util.ArrayList<>();
 +
-+	@Override
-+	public @NotNull List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers() {
-+		return bootstrappers;
++	@org.jetbrains.annotations.NotNull
++	public com.google.common.collect.ImmutableList<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers() {
++		return com.google.common.collect.ImmutableList.copyOf(bootstrappers);
 +	}
 +
 +	// TokyPaper end
  
-     // Etc
+     public BootstrapProviderStorage() {
+         super(new ModernPluginLoadingStrategy<>(new ProviderLoader<>() {
+@@ -49,6 +58,7 @@ public class BootstrapProviderStorage extends OrderedProviderStorage<PluginBoots
  
-diff --git a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
-index 6a30e697c3391b9cef814f33e5eb3f7502727df1..11fbfc31ca8741047d65545df9d0e0625fd52963 100644
---- a/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
-+++ b/src/main/java/io/papermc/paper/plugin/provider/service/entrypoint/storage/ordered/BootstrapProviderStorage.java
-@@ -35,6 +35,7 @@ public class BootstrapProviderStorage extends OrderedProviderStorage<PluginBoots
-                 try {
-                     PluginBootstrapContext context = PluginBootstrapContextImpl.of(provider, Main.pluginDirectory);
-                     provided.boostrap(context);
-+					io.papermc.paper.plugin.manager.PaperPluginManagerImpl.getInstance().bootstrappers.add(provided); // TokyPaper
-                     return true;
-                 } catch (Exception e) {
-                     provider.getLogger().log(Level.SEVERE, "Failed to run bootstrapper for %s. This plugin will not be loaded.".formatted(provider.getSource()), e);
+     @Override
+     public void processProvided(PluginBootstrap provided) {
++		bootstrappers.add(provided); // TokyPaper
+     }
+ 
+     @Override

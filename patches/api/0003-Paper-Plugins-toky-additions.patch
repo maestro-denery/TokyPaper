@@ -4,42 +4,38 @@ Date: Thu, 1 Sep 2022 00:38:04 +0300
 Subject: [PATCH] Paper-Plugins-toky-additions
 
 
-diff --git a/src/main/java/org/bukkit/plugin/PluginManager.java b/src/main/java/org/bukkit/plugin/PluginManager.java
-index 97d498cf3c3545e2835fe0d4c5e4fe9f121014b3..9d23ec4b47650e371f5ecffd901b4b1d8b218f9f 100644
---- a/src/main/java/org/bukkit/plugin/PluginManager.java
-+++ b/src/main/java/org/bukkit/plugin/PluginManager.java
-@@ -1,6 +1,7 @@
- package org.bukkit.plugin;
- 
- import java.io.File;
-+import java.util.List;
- import java.util.Set;
- 
- import io.papermc.paper.plugin.configuration.PluginConfiguration;
-@@ -335,4 +336,9 @@ public interface PluginManager extends io.papermc.paper.plugin.PermissionManager
-      */
-     void overridePermissionManager(@Nullable Plugin plugin, @Nullable io.papermc.paper.plugin.PermissionManager permissionManager);
-     // Paper end
-+
+diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
+index 721cdeacdbc74c23811fc0119e213e1d8df92275..8a8b54659a1738d5578a83949393c95d44eba5d7 100644
+--- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
++++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
+@@ -33,4 +33,10 @@ public interface PluginBootstrap {
+     default JavaPlugin createPlugin(@NotNull PluginBootstrapContext context) {
+         return ProviderUtil.loadClass(context.getConfiguration().getMain(), JavaPlugin.class, this.getClass().getClassLoader());
+     }
 +	// TokyPaper start
-+	@NotNull
-+	List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers();
++	interface PluginBootstrapManager {
++		@NotNull
++		com.google.common.collect.ImmutableList<PluginBootstrap> getPluginBootstrappers();
++	}
 +	// TokyPaper end
  }
-diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-index 6ceb05588495ef78d939c4d742a4a3f3f52e1a13..6c3298ffb4901f4f8b14caaacff0b7179bc8a4c2 100644
---- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-+++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
-@@ -1044,4 +1044,12 @@ public final class SimplePluginManager implements PluginManager {
-         this.paperPluginManager.addPermissions(perm);
-     }
-     // Paper end
-+	// TokyPaper start
+diff --git a/src/main/java/io/toky/tokypaper/TokyPaper.java b/src/main/java/io/toky/tokypaper/TokyPaper.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d670875e2a7e7a369923dbbc13a9b7a8e8279a9c
+--- /dev/null
++++ b/src/main/java/io/toky/tokypaper/TokyPaper.java
+@@ -0,0 +1,14 @@
++package io.toky.tokypaper;
 +
-+	@Override
-+	public @NotNull List<io.papermc.paper.plugin.bootstrap.PluginBootstrap> getPluginBootstrappers() {
-+		return paperPluginManager.getPluginBootstrappers();
++import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
++
++public final class TokyPaper {
++	private TokyPaper() {}
++	private static PluginBootstrap.PluginBootstrapManager pluginBootstrapManager = null;
++
++	public static void setPluginBootstrapManager(PluginBootstrap.PluginBootstrapManager pluginBootstrapManager) {
++		if (TokyPaper.pluginBootstrapManager != null)
++			throw new IllegalStateException("The manager instance is not null!");
++		TokyPaper.pluginBootstrapManager = pluginBootstrapManager;
 +	}
-+
-+	// TOkyPaper end
- }
++}
