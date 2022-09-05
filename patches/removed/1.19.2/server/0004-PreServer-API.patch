@@ -4,6 +4,30 @@ Date: Fri, 2 Sep 2022 02:04:17 +0300
 Subject: [PATCH] PreServer-API
 
 
+diff --git a/src/main/java/io/papermc/paper/plugin/DependencyContext.java b/src/main/java/io/papermc/paper/plugin/DependencyContext.java
+deleted file mode 100644
+index 93e15901fcc2c9fbed2dd55e31df30d16314ceef..0000000000000000000000000000000000000000
+--- a/src/main/java/io/papermc/paper/plugin/DependencyContext.java
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package io.papermc.paper.plugin;
+-
+-import io.papermc.paper.plugin.configuration.PluginConfiguration;
+-
+-/*
+-We need to be able to expose the dependency tree of when certain providers are being loaded.
+-The issue is that we don't know where this context might be, as it might be in the actual storage that
+-this will be needed or just in the plugin manager.
+-
+-We need this to be able to allow resolving other classes in the BootstrapProviderStorage, PluginProviderStorage, and then the PaperPluginManagerImpl.
+- */
+-public interface DependencyContext {
+-
+-    boolean isTransitiveDependency(PluginConfiguration plugin, PluginConfiguration depend);
+-
+-    boolean hasDependency(String pluginIdentifier);
+-
+-}
 diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
 index be11dbf67508fe5ecd744403881ffa7300c689fb..17521248be800080e2484a15b42cbf5868b29aa7 100644
 --- a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
@@ -80,8 +104,102 @@ index be11dbf67508fe5ecd744403881ffa7300c689fb..17521248be800080e2484a15b42cbf58
 +	}
 +	// TokyPaper end
  }
+diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
+index 0473d0a764016bcc127696e73e0c39149dfbf5eb..d2e67a9b9c291e56c400d4e7421f31f5b76cfdd3 100644
+--- a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
++++ b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginInstanceManager.java
+@@ -44,14 +44,11 @@ class PaperPluginInstanceManager {
+     private static final DirectoryProviderSource DIRECTORY_PROVIDER_SOURCE = new DirectoryProviderSource();
+ 
+     private final List<Plugin> plugins = new ArrayList<>();
+-    private final Map<String, Plugin> lookupNames = new HashMap<>();
+ 
+     private final PluginManager pluginManager;
+     private final CommandMap commandMap;
+     private final Server server;
+ 
+-    private final MutableGraph<String> dependencyGraph = GraphBuilder.directed().build();
+-
+     public PaperPluginInstanceManager(PluginManager pluginManager, CommandMap commandMap, Server server) {
+         this.commandMap = commandMap;
+         this.server = server;
+@@ -59,7 +56,7 @@ class PaperPluginInstanceManager {
+     }
+ 
+     public @Nullable Plugin getPlugin(@NotNull String name) {
+-        return this.lookupNames.get(name.replace(' ', '_').toLowerCase(java.util.Locale.ENGLISH)); // Paper
++        return io.toky.tokypaper.PaperPluginDependencyContextImpl.INSTANCE.getPlugin(name); // TokyPaper
+     }
+ 
+     public @NotNull Plugin[] getPlugins() {
+@@ -81,28 +78,10 @@ class PaperPluginInstanceManager {
+     }
+ 
+     public void loadPlugin(Plugin provided) {
+-        PluginConfiguration configuration = provided.getConfiguration();
+-        String dependencyIdentifier = configuration.getIdentifier();
+-
++		// TokyPaper start
+         this.plugins.add(provided);
+-        this.lookupNames.put(configuration.getIdentifier().toLowerCase(java.util.Locale.ENGLISH), provided);
+-        for (String providedPlugin : configuration.getProvides()) {
+-            this.lookupNames.putIfAbsent(providedPlugin.toLowerCase(java.util.Locale.ENGLISH), provided);
+-        }
+-
+-        for (String dependency : configuration.getHardDependencies()) {
+-            this.dependencyGraph.putEdge(dependencyIdentifier, dependency);
+-        }
+-
+-        for (String loadBeforeTarget : configuration.getLoadBefore()) {
+-            this.dependencyGraph.putEdge(loadBeforeTarget, dependencyIdentifier);
+-        }
+-
+-        for (String dependency : configuration.getSoftDependencies()) {
+-            this.dependencyGraph.putEdge(dependencyIdentifier, dependency);
+-        }
+-
+-        this.dependencyGraph.addNode(dependencyIdentifier); // Make sure dependencies at least have a node
++		io.toky.tokypaper.PaperPluginDependencyContextImpl.INSTANCE.loadDependencies(provided);
++        // TokyPaper end
+     }
+ 
+     // InvalidDescriptionException is never used, because the old JavaPluginLoader would wrap the exception.
+@@ -195,7 +174,7 @@ class PaperPluginInstanceManager {
+         synchronized (this) {
+             this.disablePlugins();
+             this.plugins.clear();
+-            this.lookupNames.clear();
++			io.toky.tokypaper.PaperPluginDependencyContextImpl.INSTANCE.clearLookUpNames(); // TokyPaper
+         }
+     }
+ 
+@@ -352,24 +331,6 @@ class PaperPluginInstanceManager {
+         this.pluginManager.callEvent(new com.destroystokyo.paper.event.server.ServerExceptionEvent(new com.destroystokyo.paper.exception.ServerPluginEnableDisableException(msg, ex, plugin)));
+     }
+ 
+-    public boolean isTransitiveDepend(@NotNull PluginConfiguration plugin, @NotNull PluginConfiguration depend) {
+-        String pluginIdentifier = plugin.getIdentifier();
+-
+-        if (this.dependencyGraph.nodes().contains(pluginIdentifier)) {
+-            Set<String> reachableNodes = Graphs.reachableNodes(this.dependencyGraph, pluginIdentifier);
+-            if (reachableNodes.contains(depend.getIdentifier())) {
+-                return true;
+-            }
+-            for (String provided : depend.getProvides()) {
+-                if (reachableNodes.contains(provided)) {
+-                    return true;
+-                }
+-            }
+-        }
+-
+-        return false;
+-    }
+-
+     public boolean hasDependency(String pluginIdentifier) {
+         return this.getPlugin(pluginIdentifier) != null;
+     }
 diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
-index 5ed863fddf9fb1cad1261b1e865dfc2f768970f1..b092197db7c7d0c06786a013370fb2923541acca 100644
+index 5ed863fddf9fb1cad1261b1e865dfc2f768970f1..39e0850245d3b8879fc7d49f27ac69cba63af5b6 100644
 --- a/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
 +++ b/src/main/java/io/papermc/paper/plugin/manager/PaperPluginManagerImpl.java
 @@ -30,7 +30,7 @@ public class PaperPluginManagerImpl implements PluginManager, DependencyContext
@@ -93,12 +211,104 @@ index 5ed863fddf9fb1cad1261b1e865dfc2f768970f1..b092197db7c7d0c06786a013370fb292
  
          if (permissionManager == null) {
              this.permissionManager = new NormalPaperPermissionManager();
+@@ -105,7 +105,7 @@ public class PaperPluginManagerImpl implements PluginManager, DependencyContext
+ 
+     @Override
+     public boolean isTransitiveDependency(PluginConfiguration pluginConfiguration, PluginConfiguration dependencyConfig) {
+-        return this.instanceManager.isTransitiveDepend(pluginConfiguration, dependencyConfig);
++        return io.toky.tokypaper.TokyPaper.getPluginDependencyContext().isTransitiveDependency(pluginConfiguration, dependencyConfig); // TokyPaper
+     }
+ 
+     @Override
+diff --git a/src/main/java/io/toky/tokypaper/PaperPluginDependencyContextImpl.java b/src/main/java/io/toky/tokypaper/PaperPluginDependencyContextImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8bd9706712ad93f2db0a24dbd369aa1a7f782628
+--- /dev/null
++++ b/src/main/java/io/toky/tokypaper/PaperPluginDependencyContextImpl.java
+@@ -0,0 +1,77 @@
++package io.toky.tokypaper;
++
++import com.google.common.graph.GraphBuilder;
++import com.google.common.graph.Graphs;
++import com.google.common.graph.MutableGraph;
++import io.papermc.paper.plugin.DependencyContext;
++import io.papermc.paper.plugin.configuration.PluginConfiguration;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Set;
++
++public final class PaperPluginDependencyContextImpl implements DependencyContext {
++	private PaperPluginDependencyContextImpl() {}
++	public static final PaperPluginDependencyContextImpl INSTANCE = new PaperPluginDependencyContextImpl();
++
++	private final Map<String, Plugin> lookupNames = new HashMap<>();
++	private final MutableGraph<String> dependencyGraph = GraphBuilder.directed().build();
++
++	@Override
++	public boolean isTransitiveDependency(PluginConfiguration plugin, PluginConfiguration depend) {
++		String pluginIdentifier = plugin.getIdentifier();
++
++		if (this.dependencyGraph.nodes().contains(pluginIdentifier)) {
++			Set<String> reachableNodes = Graphs.reachableNodes(this.dependencyGraph, pluginIdentifier);
++			if (reachableNodes.contains(depend.getIdentifier())) {
++				return true;
++			}
++			for (String provided : depend.getProvides()) {
++				if (reachableNodes.contains(provided)) {
++					return true;
++				}
++			}
++		}
++
++		return false;
++	}
++
++	@Override
++	public boolean hasDependency(String pluginIdentifier) {
++		return false;
++	}
++
++	public void loadDependencies(Plugin provided) {
++		PluginConfiguration configuration = provided.getConfiguration();
++		String dependencyIdentifier = configuration.getIdentifier();
++
++		this.lookupNames.put(configuration.getIdentifier().toLowerCase(java.util.Locale.ENGLISH), provided);
++		for (String providedPlugin : configuration.getProvides()) {
++			this.lookupNames.putIfAbsent(providedPlugin.toLowerCase(java.util.Locale.ENGLISH), provided);
++		}
++
++		for (String dependency : configuration.getHardDependencies()) {
++			this.dependencyGraph.putEdge(dependencyIdentifier, dependency);
++		}
++
++		for (String loadBeforeTarget : configuration.getLoadBefore()) {
++			this.dependencyGraph.putEdge(loadBeforeTarget, dependencyIdentifier);
++		}
++
++		for (String dependency : configuration.getSoftDependencies()) {
++			this.dependencyGraph.putEdge(dependencyIdentifier, dependency);
++		}
++
++		this.dependencyGraph.addNode(dependencyIdentifier); // Make sure dependencies at least have a node
++	}
++
++	public Plugin getPlugin(@NotNull String name) {
++		return this.lookupNames.get(name.replace(' ', '_').toLowerCase(java.util.Locale.ENGLISH));
++	}
++
++	public void clearLookUpNames() {
++		lookupNames.clear();
++	}
++}
 diff --git a/src/main/java/io/toky/tokypaper/ServerConfigurationImpl.java b/src/main/java/io/toky/tokypaper/ServerConfigurationImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..de946eb77fc524bc6bd6eed6b3e96bfa3242ed12
+index 0000000000000000000000000000000000000000..02b91c7a3902a67ae41a02d2d50acee20749a26e
 --- /dev/null
 +++ b/src/main/java/io/toky/tokypaper/ServerConfigurationImpl.java
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,175 @@
 +package io.toky.tokypaper;
 +
 +import com.google.common.base.Charsets;
@@ -124,7 +334,6 @@ index 0000000000000000000000000000000000000000..de946eb77fc524bc6bd6eed6b3e96bfa
 +import java.io.IOException;
 +import java.io.InputStreamReader;
 +import java.util.ArrayList;
-+import java.util.List;
 +import java.util.function.Consumer;
 +import java.util.logging.Level;
 +import java.util.logging.Logger;
@@ -289,7 +498,7 @@ index dd0143f319d4adef8834c513af34b1cce7a94a84..e8b450b08e6138d2b45c6fc5ab57c987
      // CraftBukkit end
  
 diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
-index 6229c360a760559fdbfa8a88716935a5a88f22ef..3714ca4bd23143e4fd5395b14efe9b6ae5ff7f45 100644
+index 6229c360a760559fdbfa8a88716935a5a88f22ef..34cc2ea0120c489f740abe32348015d4b654eb0d 100644
 --- a/src/main/java/net/minecraft/server/Main.java
 +++ b/src/main/java/net/minecraft/server/Main.java
 @@ -65,11 +65,17 @@ public class Main {
@@ -310,18 +519,19 @@ index 6229c360a760559fdbfa8a88716935a5a88f22ef..3714ca4bd23143e4fd5395b14efe9b6a
          SharedConstants.tryDetectVersion();
          /* CraftBukkit start - Replace everything
          OptionParser optionparser = new OptionParser();
-@@ -104,6 +110,10 @@ public class Main {
+@@ -104,6 +110,11 @@ public class Main {
              if (optionset.has("jfrProfile")) { // CraftBukkit
                  JvmProfiler.INSTANCE.start(Environment.SERVER);
              }
 +			// TokyPaper start - PreServer
 +			serverConfiguration = new io.toky.tokypaper.ServerConfigurationImpl(optionset);
 +			io.toky.tokypaper.TokyPaper.setEventManager(eventManager);
++			io.toky.tokypaper.TokyPaper.setPluginDependencyContext(io.toky.tokypaper.PaperPluginDependencyContextImpl.INSTANCE);
 +			// TokyPaper end
  			// Paper start
  			io.papermc.paper.plugin.provider.service.classloader.PaperClassloaderBytecodeModifier.init();
  			io.papermc.paper.plugin.provider.source.Providers provider = io.papermc.paper.plugin.provider.source.Providers.INSTANCE;
-@@ -271,6 +281,7 @@ public class Main {
+@@ -271,6 +282,7 @@ public class Main {
              Class.forName(net.minecraft.world.entity.npc.VillagerTrades.class.getName());// Paper - load this sync so it won't fail later async
              final DedicatedServer dedicatedserver = (DedicatedServer) MinecraftServer.spin((thread) -> {
                  DedicatedServer dedicatedserver1 = new DedicatedServer(optionset, config.get(), ops.get(), thread, convertable_conversionsession, resourcepackrepository, worldstem, dedicatedserversettings, DataFixers.getDataFixer(), services, LoggerChunkProgressListener::new);
@@ -329,7 +539,7 @@ index 6229c360a760559fdbfa8a88716935a5a88f22ef..3714ca4bd23143e4fd5395b14efe9b6a
  
                  /*
                  dedicatedserver1.setSingleplayerProfile(optionset.has(optionspec8) ? new GameProfile((UUID) null, (String) optionset.valueOf(optionspec8)) : null);
-@@ -318,6 +329,20 @@ public class Main {
+@@ -318,6 +330,20 @@ public class Main {
          worldUpgrader.convert();
      }
      // Paper end - fix and optimise world upgrading

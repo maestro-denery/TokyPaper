@@ -39,7 +39,7 @@ index d31b5ed47cffc61c90c926a0cd2005b72ebddfc5..bbb8b1933ef33a3b91f69545f69dd3cf
  }
 diff --git a/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java b/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e8e4220319d2c208733e4f9435460e4cbfb6978
+index 0000000000000000000000000000000000000000..ff90f2e11f9576693fcf93af47ebca83aeefb0dc
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java
 @@ -0,0 +1,218 @@
@@ -4781,42 +4781,41 @@ index 0000000000000000000000000000000000000000..e856f7900026e508a1076c28ccace58a
 +}
 +
 diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
-index 0a843e0afbcb1af8e2641515eb244b791b819b8c..6229c360a760559fdbfa8a88716935a5a88f22ef 100644
+index 0a843e0afbcb1af8e2641515eb244b791b819b8c..5d563a8c9520a348b61b7122cead76aabf8d429f 100644
 --- a/src/main/java/net/minecraft/server/Main.java
 +++ b/src/main/java/net/minecraft/server/Main.java
 @@ -64,6 +64,7 @@ import net.minecraft.SharedConstants;
  public class Main {
- 
+
      private static final Logger LOGGER = LogUtils.getLogger();
 +    public static Path pluginDirectory;
- 
+
      public Main() {}
- 
-@@ -103,7 +104,18 @@ public class Main {
-             if (optionset.has("jfrProfile")) { // CraftBukkit
-                 JvmProfiler.INSTANCE.start(Environment.SERVER);
+
+@@ -105,6 +106,18 @@ public class Main {
              }
--
-+			// Paper start
-+			io.papermc.paper.plugin.provider.service.classloader.PaperClassloaderBytecodeModifier.init();
-+			io.papermc.paper.plugin.provider.source.Providers provider = io.papermc.paper.plugin.provider.source.Providers.INSTANCE;
-+			File pluginfile = (File) optionset.valueOf("plugins");
-+			provider.addProviders(io.papermc.paper.plugin.provider.source.impl.DirectoryProviderSource.INSTANCE, pluginfile.toPath());
-+
-+			@SuppressWarnings("unchecked")
-+			java.util.List<File> files = (java.util.List<File>) optionset.valuesOf("add-plugin");
-+			provider.addProviders(io.papermc.paper.plugin.provider.source.impl.PluginFlagProviderSource.INSTANCE, files);
-+			pluginDirectory = pluginfile.toPath();
-+			io.papermc.paper.plugin.provider.service.entrypoint.ServerEntryPointHandler.INSTANCE.enter(io.papermc.paper.plugin.provider.service.entrypoint.Entrypoint.BOOTSTRAPPER);
-+			// Paper end
+
              Bootstrap.bootStrap();
++            // Paper start
++            io.papermc.paper.plugin.provider.service.classloader.PaperClassloaderBytecodeModifier.init();
++            io.papermc.paper.plugin.provider.source.Providers provider = io.papermc.paper.plugin.provider.source.Providers.INSTANCE;
++            File pluginfile = (File) optionset.valueOf("plugins");
++            provider.addProviders(io.papermc.paper.plugin.provider.source.impl.DirectoryProviderSource.INSTANCE, pluginfile.toPath());
++
++            @SuppressWarnings("unchecked")
++            java.util.List<File> files = (java.util.List<File>) optionset.valuesOf("add-plugin");
++            provider.addProviders(io.papermc.paper.plugin.provider.source.impl.PluginFlagProviderSource.INSTANCE, files);
++            pluginDirectory = pluginfile.toPath();
++            io.papermc.paper.plugin.provider.service.entrypoint.ServerEntryPointHandler.INSTANCE.enter(io.papermc.paper.plugin.provider.service.entrypoint.Entrypoint.BOOTSTRAPPER);
++            // Paper end
              Bootstrap.validate();
              Util.startTimerHackThread();
+             Path path = Paths.get("server.properties");
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index df83f292053fbc6465398e39355d275713e7c698..7dd97e08a6ab53a57ac061361a257b1fba0d6188 100644
+index a8cf1ab9d7504dfdb2310f1dca82324a225bea7d..d94cd7da7eee3954f443452a2f3e6cb8e2ba1bfb 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -257,7 +257,8 @@ public final class CraftServer implements Server {
+@@ -255,7 +255,8 @@ public final class CraftServer implements Server {
      private final CraftCommandMap commandMap = new CraftCommandMap(this);
      private final SimpleHelpMap helpMap = new SimpleHelpMap(this);
      private final StandardMessenger messenger = new StandardMessenger();
@@ -4826,7 +4825,7 @@ index df83f292053fbc6465398e39355d275713e7c698..7dd97e08a6ab53a57ac061361a257b1f
      private final StructureManager structureManager;
      protected final DedicatedServer console;
      protected final DedicatedPlayerList playerList;
-@@ -359,7 +360,7 @@ public final class CraftServer implements Server {
+@@ -357,7 +358,7 @@ public final class CraftServer implements Server {
          this.saveCommandsConfig();
          this.overrideAllCommandBlockCommands = this.commandsConfiguration.getStringList("command-block-overrides").contains("*");
          this.ignoreVanillaPermissions = this.commandsConfiguration.getBoolean("ignore-vanilla-permissions");
@@ -4835,9 +4834,9 @@ index df83f292053fbc6465398e39355d275713e7c698..7dd97e08a6ab53a57ac061361a257b1f
          this.overrideSpawnLimits();
          console.autosavePeriod = this.configuration.getInt("ticks-per.autosave");
          this.warningState = WarningState.value(this.configuration.getString("settings.deprecated-verbose"));
-@@ -411,29 +412,7 @@ public final class CraftServer implements Server {
+@@ -409,29 +410,7 @@ public final class CraftServer implements Server {
      }
- 
+
      public void loadPlugins() {
 -        this.pluginManager.registerInterface(JavaPluginLoader.class);
 -
@@ -4864,9 +4863,9 @@ index df83f292053fbc6465398e39355d275713e7c698..7dd97e08a6ab53a57ac061361a257b1f
 -        }
 +        io.papermc.paper.plugin.provider.service.entrypoint.ServerEntryPointHandler.INSTANCE.enter(io.papermc.paper.plugin.provider.service.entrypoint.Entrypoint.PLUGIN); // Paper - replace implementation
      }
- 
+
      // Paper start
-@@ -552,15 +531,17 @@ public final class CraftServer implements Server {
+@@ -550,15 +529,17 @@ public final class CraftServer implements Server {
      private void enablePlugin(Plugin plugin) {
          try {
              List<Permission> perms = plugin.getDescription().getPermissions();
@@ -4887,10 +4886,10 @@ index df83f292053fbc6465398e39355d275713e7c698..7dd97e08a6ab53a57ac061361a257b1f
              }
 -            this.pluginManager.dirtyPermissibles();
 +            this.paperPluginManager.addPermissions(permsToLoad); // Paper
- 
+
              this.pluginManager.enablePlugin(plugin);
          } catch (Throwable ex) {
-@@ -2797,7 +2778,7 @@ public final class CraftServer implements Server {
+@@ -2790,7 +2771,7 @@ public final class CraftServer implements Server {
  
      @Override
      public void reloadPermissions() {
